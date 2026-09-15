@@ -1,0 +1,3 @@
+C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Debug/_deps/raylib-subbuild/CMakeFiles/raylib-populate.dir
+C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Debug/_deps/raylib-subbuild/CMakeFiles/edit_cache.dir
+C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Debug/_deps/raylib-subbuild/CMakeFiles/rebuild_cache.dir
