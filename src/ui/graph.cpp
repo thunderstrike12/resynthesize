@@ -56,13 +56,17 @@ namespace resynth {
 		if (!view.initialized) {
 			float x_min = std::numeric_limits<float>::max(), x_max = std::numeric_limits<float>::lowest();
 			float y_min = std::numeric_limits<float>::max(), y_max = std::numeric_limits<float>::lowest();
+			bool any_data = false;
 			for (int s = 0; s < series_count; s++) {
 				const auto& ser = series[s];
+				if (!ser.xs || !ser.ys || ser.count <= 0) continue;   // GUARD
+				any_data = true;
 				for (int i = 0; i < ser.count; i++) {
 					x_min = std::min(x_min, ser.xs[i]); x_max = std::max(x_max, ser.xs[i]);
 					y_min = std::min(y_min, ser.ys[i]); y_max = std::max(y_max, ser.ys[i]);
 				}
 			}
+			if (!any_data) return;                                    // GUARD
 			if (x_min == x_max) x_max += 1.0f;
 			if (y_min == y_max) { y_min -= 1.0f; y_max += 1.0f; }
 
@@ -154,6 +158,7 @@ namespace resynth {
 		BeginScissorMode((int)bounds.x, (int)bounds.y, (int)bounds.width, (int)bounds.height);
 		for (int s = 0; s < series_count; s++) {
 			const auto& ser = series[s];
+			if (!ser.xs || !ser.ys || ser.count <= 0) continue;        // GUARD
 
 			if (ser.draw_points) {
 				for (int i = 0; i < ser.count; i++) {
@@ -199,7 +204,7 @@ namespace resynth {
 
 			for (int s = 0; s < series_count; s++) {
 				const auto& ser = series[s];
-				if (ser.count <= 0) continue;
+				if (!ser.xs || !ser.ys || ser.count <= 0) continue;    // GUARD
 
 				int idx = std::clamp(FindNearestIndex(ser.xs, ser.count, data_x), 0, ser.count - 1);
 				Vector2 pt = MapToScreen(ser.xs[idx], ser.ys[idx], view.x_min, view.x_max, view.y_min, view.y_max, bounds);
@@ -242,58 +247,42 @@ namespace resynth {
 		}
 	}  // namespace
 
-	void BuildSpectrogram(SpectrogramData& spec, const Chunk* chunks, int chunk_count, float max_freq_hz, bool hann_smoothing) {
+	void BuildSpectrogram(SpectrogramData& spec, const Fourier& fourier, float max_freq_hz) {
+		const auto& chunks = fourier.chunks;
+		int chunk_count = (int)chunks.size();
 		if (chunk_count <= 0) { spec.built = false; return; }
 
+		float bin_hz = fourier.bin_to_hz(1);
 		int freq_count = chunks[0].nyquist;
-		if (max_freq_hz > 0.0f && chunks[0].xc.size() > 1) {
-			float bin_hz = chunks[0].xc[1] - chunks[0].xc[0];
-			if (bin_hz > 0.0f) freq_count = std::min(freq_count, (int)ceilf(max_freq_hz / bin_hz));
-		}
+		if (max_freq_hz > 0.0f && bin_hz > 0.0f)
+			freq_count = std::min(freq_count, (int)ceilf(max_freq_hz / bin_hz));
 		freq_count = std::max(freq_count, 1);
 
 		spec.time_count = chunk_count;
 		spec.freq_count = freq_count;
 		spec.time_step = chunk_count > 1 ? (chunks[1].time_offset - chunks[0].time_offset) : 0.0f;
-		spec.freq_step = freq_count > 1 ? (chunks[0].xc[1] - chunks[0].xc[0]) : 0.0f;
-		spec.hann_smoothing = hann_smoothing;
+		spec.freq_step = bin_hz;
 
 		spec.magnitudes.assign((size_t)chunk_count * freq_count, 0.0f);
+		std::vector<float> xc, mag, ph;
 		float max_mag = 0.0f;
 		for (int t = 0; t < chunk_count; t++) {
+			fourier.fill_spectrum_from_real_and_imag(chunks[t].spec_real, chunks[t].spec_imag, xc, mag, ph, chunks[t].nyquist);
 			for (int f = 0; f < freq_count; f++) {
-				float mag;
-				if (hann_smoothing)
-					mag = chunks[t].ych[f];
-				else 
-					mag = chunks[t].yc[f];
-				spec.magnitudes[(size_t)t * freq_count + f] = mag;
-				max_mag = std::max(max_mag, mag);
+				float g = f < (int)chunks[t].gain.size() ? chunks[t].gain[f] : 1.0f;
+				spec.magnitudes[(size_t)t * freq_count + f] = mag[f];
+				max_mag = std::max(max_mag, mag[f] * g);
 			}
 		}
-		spec.max_mag = max_mag;
-		float log_max = log1pf(max_mag);
-		if (log_max <= 0.0f) log_max = 1.0f;
-		TraceLog(LOG_INFO, "Spectrogram max_mag: %f", max_mag);
+		spec.max_mag = max_mag > 1e-9f ? max_mag : 1.0f;
 
 		Image img = GenImageColor(chunk_count, freq_count, BLACK);
-		for (int t = 0; t < chunk_count; t++) {
+		for (int t = 0; t < chunk_count; t++)
 			for (int f = 0; f < freq_count; f++) {
-				//float norm = log1pf(spec.magnitudes[(size_t)t * freq_count + f]) / log_max;
-				float norm = spec.magnitudes[(size_t)t * freq_count + f] / max_mag; // 0..1 relative to loudest bin
-				norm = powf(norm, 0.25f);           // aggressive gamma — brightens quiet detail a lot
-				norm = std::min(norm * 1.8f, 1.0f); // extra flat multiplier, clamp so it doesn't overshoot the gradient
-				// flip row so low frequencies render at the bottom, not the top
+				float m = spec.magnitudes[(size_t)t * freq_count + f] * chunks[t].gain[f];
+				float norm = std::min(powf(std::clamp(m / spec.max_mag, 0.0f, 1.0f), 0.25f) * 1.8f, 1.0f);
 				ImageDrawPixel(&img, t, freq_count - 1 - f, MagnitudeToColor(norm));
 			}
-		}
-
-		//if (spec.built) UnloadTexture(spec.texture);
-		//spec.texture = LoadTextureFromImage(img);
-		//if (spec.texture.id == 0) {
-		//	TraceLog(LOG_ERROR, "Failed to create spectrogram texture! Requested size: %d x %d", chunk_count, freq_count);
-		//}
-		//SetTextureFilter(spec.texture, TEXTURE_FILTER_POINT);
 
 		if (spec.built) {
 			UnloadTexture(spec.texture);
@@ -306,11 +295,6 @@ namespace resynth {
 		SetTextureFilter(spec.texture, TEXTURE_FILTER_POINT);
 		SetTextureFilter(spec.original_texture, TEXTURE_FILTER_POINT);
 		spec.built = true;
-
-		//if (spec.built) { UnloadTexture(spec.texture); UnloadImage(spec.image); }
-		//spec.image = img;
-		//spec.texture = LoadTextureFromImage(img);
-		//spec.built = true;
 	}
 
 	void DrawSpectrogram(SpectrogramData& spec, Rectangle bounds, const char* label) {
@@ -366,16 +350,17 @@ namespace resynth {
 	}
 
 	namespace {
-		void RepaintPixel(SpectrogramData& spec, int t, int f) {
-			float norm = spec.max_mag > 0.0f
-				? spec.magnitudes[(size_t)t * spec.freq_count + f] / spec.max_mag : 0.0f;
-			norm = powf(std::clamp(norm, 0.0f, 1.0f), 0.25f);
-			norm = std::min(norm * 1.8f, 1.0f);
+		void RepaintPixel(SpectrogramData& spec, const Chunk* chunks, int t, int f) {
+			float g = f < (int)chunks[t].gain.size() ? chunks[t].gain[f] : 1.0f;
+			float m = spec.magnitudes[(size_t)t * spec.freq_count + f] * g;
+			float norm = std::min(powf(std::clamp(m / spec.max_mag, 0.0f, 1.0f), 0.25f) * 1.8f, 1.0f);
 			ImageDrawPixel(&spec.image, t, spec.freq_count - 1 - f, MagnitudeToColor(norm));
 		}
-		void FlushRegion(SpectrogramData& spec, int t_lo, int t_hi, int f_lo, int f_hi) {
+
+		void FlushRegion(SpectrogramData& spec, const Chunk* chunks,
+			int t_lo, int t_hi, int f_lo, int f_hi) {
 			for (int t = t_lo; t <= t_hi; t++)
-				for (int f = f_lo; f <= f_hi; f++) RepaintPixel(spec, t, f);
+				for (int f = f_lo; f <= f_hi; f++) RepaintPixel(spec, chunks, t, f);
 
 			int row_lo = spec.freq_count - 1 - f_hi;
 			Rectangle dirty = { 0, (float)row_lo, (float)spec.time_count, (float)(f_hi - f_lo + 1) };
@@ -384,22 +369,11 @@ namespace resynth {
 		}
 	}
 
-	bool PaintSpectrogram(SpectrogramData& spec, Rectangle bounds, Chunk* chunks,
-		int chunk_count, SpectrogramBrush& brush,
-		int& out_t_lo, int& out_t_hi) {
-		if (!spec.built || !brush.enabled || spec.time_count != chunk_count) return false;
+	static bool PaintSpectrogram(SpectrogramData& spec, Rectangle bounds, Chunk* chunks, int chunk_count, SpectrogramBrush& brush, int& out_t_lo, int& out_t_hi) {
+		if (!spec.built || spec.time_count != chunk_count) return false;
 
 		Vector2 mouse = GetMousePosition();
 		bool inside = CheckCollisionPointRec(mouse, bounds);
-
-		//if (inside) {
-		//	DrawCircleLinesV(mouse, brush.radius_px, kCrosshair);
-		//	float wheel = GetMouseWheelMove();
-		//	if (wheel != 0.0f) {
-		//		brush.radius_px = std::clamp(brush.radius_px + wheel * 4.0f, 3.0f, 200.0f);
-		//		g_wheel_consumed_this_frame = true;
-		//	}
-		//}
 		if (inside) {
 			g_wheel_consumed_this_frame = true;
 			DrawCircleLinesV(mouse, brush.radius_px, kCrosshair);
@@ -417,10 +391,8 @@ namespace resynth {
 
 		float px_per_col = bounds.width / (float)spec.time_count;
 		float px_per_row = bounds.height / (float)spec.freq_count;
-		//float value = brush.strength * spec.max_mag;
-		float value = spec.max_mag * powf(std::clamp(brush.strength, 0.0f, 1.0f), 4.0f);
+		float boost = 1.0f + brush.strength * 8.0f;
 
-		// walk the stroke so fast drags don't leave gaps
 		int steps = std::max(1, (int)(Vector2Distance(from, mouse) / std::max(brush.radius_px * 0.4f, 1.0f)));
 		int rt = (int)ceilf(brush.radius_px / px_per_col);
 		int rf = (int)ceilf(brush.radius_px / px_per_row);
@@ -434,26 +406,19 @@ namespace resynth {
 
 			for (int t = (int)tc - rt; t <= (int)tc + rt; t++) {
 				if (t < 0 || t >= spec.time_count) continue;
-				std::vector<float>& row = spec.hann_smoothing ? chunks[t].ych : chunks[t].yc;
+				std::vector<float>& g = chunks[t].gain;
 
 				for (int f = (int)fc - rf; f <= (int)fc + rf; f++) {
-					if (f < 0 || f >= spec.freq_count || f >= (int)row.size()) continue;
+					if (f < 0 || f >= spec.freq_count || f >= (int)g.size()) continue;
 
-					// measure distance in screen space so the brush stays round
 					float dx = ((float)t + 0.5f - tc) * px_per_col;
 					float dy = ((float)f + 0.5f - fc) * px_per_row;
 					float d = sqrtf(dx * dx + dy * dy) / brush.radius_px;
 					if (d > 1.0f) continue;
 
-					//float falloff = brush.soft ? 0.5f + 0.5f * cosf(PI * d) : 1.0f;
-					//row[f] = std::max(sub ? row[f] * (1.0f - falloff)
-					//	: row[f] + value * falloff, 0.0f);
-					//spec.magnitudes[(size_t)t * spec.freq_count + f] = row[f];
-
 					float falloff = brush.soft ? 0.5f + 0.5f * cosf(PI * d) : 1.0f;
-					if (sub) row[f] = std::min(row[f], row[f] * (1.0f - falloff));
-					else     row[f] = std::max(row[f], value * falloff);
-					spec.magnitudes[(size_t)t * spec.freq_count + f] = row[f];
+					if (sub) g[f] *= (1.0f - falloff);
+					else     g[f] = std::max(g[f], Lerp(1.0f, boost, falloff));
 
 					t_lo = std::min(t_lo, t); t_hi = std::max(t_hi, t);
 					f_lo = std::min(f_lo, f); f_hi = std::max(f_hi, f);
@@ -462,8 +427,7 @@ namespace resynth {
 		}
 		if (t_hi < 0) return false;
 
-		FlushRegion(spec, t_lo, t_hi, f_lo, f_hi);
-
+		FlushRegion(spec, chunks, t_lo, t_hi, f_lo, f_hi);
 		out_t_lo = t_lo; out_t_hi = t_hi;
 		return true;
 	}
@@ -486,7 +450,6 @@ namespace resynth {
 			return false;
 		}
 
-		// clamp so dragging off the edge still gives a sane rect
 		Vector2 cur = { std::clamp(mouse.x, bounds.x, bounds.x + bounds.width),
 						std::clamp(mouse.y, bounds.y, bounds.y + bounds.height) };
 		Rectangle sel = { std::min(brush.drag_start.x, cur.x), std::min(brush.drag_start.y, cur.y),
@@ -505,31 +468,29 @@ namespace resynth {
 
 		int t_lo = std::clamp((int)floorf((sel.x - bounds.x) / px_per_col), 0, spec.time_count - 1);
 		int t_hi = std::clamp((int)floorf((sel.x + sel.width - bounds.x) / px_per_col), 0, spec.time_count - 1);
-		// screen y is flipped: top of the rect is the HIGH frequency
 		int f_hi = std::clamp((int)floorf((bounds.y + bounds.height - sel.y) / px_per_row), 0, spec.freq_count - 1);
 		int f_lo = std::clamp((int)floorf((bounds.y + bounds.height - sel.y - sel.height) / px_per_row), 0, spec.freq_count - 1);
 
-		float value = spec.max_mag * powf(std::clamp(brush.strength, 0.0f, 1.0f), 4.0f);
+		float boost = 1.0f + brush.strength * 8.0f;
 		int fn = f_hi - f_lo;
 
 		for (int t = t_lo; t <= t_hi; t++) {
-			std::vector<float>& row = spec.hann_smoothing ? chunks[t].ych : chunks[t].yc;
+			std::vector<float>& g = chunks[t].gain;
 			for (int f = f_lo; f <= f_hi; f++) {
-				if (f >= (int)row.size()) continue;
+				if (f >= (int)g.size()) continue;
 				if (brush.drag_add) {
 					float shape = 1.0f;
 					if (brush.soft && fn > 0) {
 						float u = (float)(f - f_lo) / (float)fn;
-						shape = 0.5f - 0.5f * cosf(2.0f * PI * u);   // dome, zero at edges
+						shape = 0.5f - 0.5f * cosf(2.0f * PI * u);
 					}
-					row[f] = std::max(row[f], value * shape);
+					g[f] = std::max(g[f], Lerp(1.0f, boost, shape));
 				}
-				else row[f] = 0.0f;
-				spec.magnitudes[(size_t)t * spec.freq_count + f] = row[f];
+				else g[f] = 0.0f;
 			}
 		}
 
-		FlushRegion(spec, t_lo, t_hi, f_lo, f_hi);
+		FlushRegion(spec, chunks, t_lo, t_hi, f_lo, f_hi);
 		out_t_lo = t_lo; out_t_hi = t_hi;
 		return true;
 	}

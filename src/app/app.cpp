@@ -9,6 +9,31 @@
 #include <algorithm>
 
 namespace resynth {
+	void App::RefreshDisplayChunk() {
+		if (fourier.chunks.empty()) return;
+		const Chunk& c = fourier.chunks[selected_chunk];
+		fourier.fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, disp_xc, disp_mag, disp_phase, c.nyquist);
+		for (int k = 0; k < c.nyquist; k++) disp_mag[k] *= c.gain[k];
+		disp_peaks = fourier.compute_peaks(c);
+
+		disp_xcr.resize(disp_peaks.size() * 3);
+		disp_ycr.resize(disp_peaks.size() * 3);
+		for (int j = 0; j < (int)disp_peaks.size(); j++) {
+			const Peak& p = disp_peaks[j];
+			disp_xcr[j * 3] = p.freq;   disp_ycr[j * 3] = 0.0f;
+			disp_xcr[j * 3 + 1] = p.freq; disp_ycr[j * 3 + 1] = p.magnitude;
+			disp_xcr[j * 3 + 2] = p.freq; disp_ycr[j * 3 + 2] = 0.0f;
+		}
+
+		disp_yr.assign(fourier.window_size, 0.0f);
+		for (int i = 0; i < fourier.window_size; i++) {
+			float t = (float)i / (float)fourier.data.sample_rate;
+			for (const Peak& p : disp_peaks)
+				disp_yr[i] += cosf(2.0f * PI * p.freq * t + p.phase) * p.magnitude;
+		}
+		disp_chunk = selected_chunk;
+	}
+
 	void App::Unload(Sound& s, bool& has) { if (has) { UnloadSound(s); has = false; } }
 
 	void App::PlayBuffer(Sound& s, bool& has, const std::vector<float>& buffer, int sample_rate) {
@@ -51,6 +76,7 @@ namespace resynth {
 			if (has_waves) StopSound(sound_waves);
 			if (has_chunks) StopSound(sound_chunks);
 			if (has_live) StopSound(sound_live);
+			if (has_spectra) StopSound(sound_spectra);
 		}
 
 		float window_size = (float)fourier.window_size;
@@ -126,9 +152,10 @@ namespace resynth {
 		DrawGraph(fourier_curve_series, 2, Rectangle{ (float)x, (float)y, 500, 150 }, view_fourier_curve, "Fourier Curve");
 		y += 200;
 
+		int nf = std::min({ (int)fourier.xc.size(), (int)fourier.yc.size(), (int)fourier.ych.size() });
 		GraphSeries strong_freq_series[] = {
-			{ fourier.xc.data(),  fourier.yc.data(),  fourier.nyquist, MAROON, "Raw" },
-			{ fourier.xc.data(), fourier.ych.data(), fourier.nyquist, ORANGE, "Smoothed" },
+			{ fourier.xc.data(),  fourier.yc.data(),  nf, MAROON, "Raw" },
+			{ fourier.xc.data(), fourier.ych.data(), nf, ORANGE, "Smoothed" },
 		};
 		DrawGraph(strong_freq_series, 2, Rectangle{ (float)x, (float)y, 500, 250 }, view_strong_freq, "Strong Frequencies");
 		y += 300;
@@ -180,31 +207,34 @@ namespace resynth {
 		y += 30;
 
 		if (GuiButton(Rectangle{ (float)x, (float)y, 160, 30 }, "Construct Chunks")) {
-			float freq_spacing = fourier.data.sample_rate > 0 ? (float)fourier.data.sample_rate / (float)fourier.window_size : 1.0f;
-			int max_bins_for_5khz = (int)(5000.0f / freq_spacing);
-
 			fourier.construct_chunks_from_audio_data();
-			BuildSpectrogram(spectrogram, fourier.chunks.data(), (int)fourier.chunks.size(), 5000);
-			BuildSpectrogram(spectrogram_no_smoothing, fourier.chunks.data(), (int)fourier.chunks.size(), 8000, false);
-			//fourier.construct_chunks_from_audio_data();
-			//BuildSpectrogram(spectrogram, fourier.chunks.data(), (int)fourier.chunks.size());
+			BuildSpectrogram(spectrogram, fourier, 48000.0f);
+			selected_chunk = 0;
+			disp_chunk = -1;
 		}
 		y += 60;
 
 		float peaks_f = (float)fourier.max_peaks_per_chunk;
 		GuiSliderBar(Rectangle{ (float)x, (float)y, 200, 20 }, "max peaks", TextFormat("%d", fourier.max_peaks_per_chunk), &peaks_f, 1.0f, 500.0f);
-		fourier.max_peaks_per_chunk = (int)peaks_f;
+		if ((int)peaks_f != fourier.max_peaks_per_chunk) {
+			fourier.max_peaks_per_chunk = (int)peaks_f;
+			disp_chunk = -1;
+		}
 		y += 50;
 		if (fourier.chunks.empty()) return;
 
-		if (GuiButton(Rectangle{ (float)x, (float)y, 160, 30 }, "Play Chunk Sound"))
-			PlayBuffer(sound_chunks, has_chunks, fourier.build_buffer_from_chunks(), fourier.data.sample_rate);
+		if (GuiButton(Rectangle{ (float)x, (float)y, 260, 30 }, "Play Chunk Sound using peaks"))
+			PlayBuffer(sound_chunks, has_chunks, fourier.build_buffer_from_chunks_using_peaks(), fourier.data.sample_rate);
+		if (GuiButton(Rectangle{ (float)x + 290, (float)y, 290, 30 }, "Play Spectrum Sound using IFFT"))
+			PlayBuffer(sound_spectra, has_spectra, fourier.build_buffer_from_chunks_using_IFFT(), fourier.data.sample_rate);
 		y += 60;
 
 		float chunk_f = (float)selected_chunk;
 		GuiSliderBar(Rectangle{ (float)x, (float)y, 480, 20 }, "chunk", TextFormat("%d / %d", selected_chunk, (int)fourier.chunks.size() - 1), &chunk_f, 0.0f, (float)(fourier.chunks.size() - 1));
-		selected_chunk = (int)chunk_f;
+		selected_chunk = std::clamp((int)chunk_f, 0, (int)fourier.chunks.size() - 1);
 		y += 50;
+
+		if (selected_chunk != disp_chunk) RefreshDisplayChunk();
 
 		auto& c = fourier.chunks[selected_chunk];
 		GuiLabel(Rectangle{ (float)x, (float)y, 300, 20 }, TextFormat("Time offset: %.3fs", c.time_offset));
@@ -217,25 +247,25 @@ namespace resynth {
 		y += 60;
 
 		if (live_playing && selected_chunk != last_live_chunk) {
-			PlayBuffer(sound_live, has_live, fourier.build_buffer_from_single_chunk(c, 20), fourier.data.sample_rate);
+			PlayBuffer(sound_live, has_live, fourier.build_buffer_from_single_chunk_using_IFFT(c, 20), fourier.data.sample_rate);
 			last_live_chunk = selected_chunk;
 		}
 
-
+		int nr = std::min((int)c.xf.size(), (int)disp_yr.size());
 		GraphSeries chunk_curve_series[] = {
 			{ c.xf.data(), c.yf.data(), (int)c.yf.size(), BLUE,  "Raw" },
 			{ c.xf.data(), c.yh.data(), (int)c.yh.size(), SKYBLUE, "Smoothed" },
-			{ c.xf.data(), c.yr.data(), (int)c.yr.size(), GREEN, "Reconstructed" },
+			{ c.xf.data(), disp_yr.data(), nr, GREEN, "Reconstructed" },
 		};
 		DrawGraph(chunk_curve_series, 3, Rectangle{ (float)x, (float)y, 480, 150 }, view_chunk_curve, "Chunk Fourier Curve");
 		y += 200;
 
-		GraphSeries chunk_reconstructed_series[] = {
-			{ c.xc.data(), c.yc.data(), (int)c.yc.size(), GREEN, "Raw" },
-			{ c.xc.data(), c.ych.data(), (int)c.ych.size(), SKYBLUE, "Reconstructed" },
-			{ c.xcr.data(), c.ycr.data(), (int)c.ycr.size(), ORANGE, "Spikes" },
+		int ns = std::min((int)disp_xc.size(), (int)disp_mag.size());
+		GraphSeries chunk_spectrum_series[] = {
+			{ disp_xc.data(),  disp_mag.data(), ns, SKYBLUE, "Spectrum" },
+			{ disp_xcr.data(), disp_ycr.data(), (int)disp_ycr.size(), ORANGE, "Peaks" },
 		};
-		DrawGraph(chunk_reconstructed_series, 3, Rectangle{ (float)x, (float)y, 480, 150 }, view_chunk_reconstructed, "Chunk Reconstructed Spectrum");
+		DrawGraph(chunk_spectrum_series, 2, Rectangle{ (float)x, (float)y, 480, 150 }, view_chunk_reconstructed, "Chunk Spectrum");
 		y += 200;
 
 		GuiCheckBox(Rectangle{ (float)x, (float)y, 20, 20 }, "Edit Spectrogram", &brush.enabled);
@@ -252,9 +282,7 @@ namespace resynth {
 		}
 		y += 30;
 
-		bool show_orig = IsKeyDown(KEY_LEFT_SHIFT);
-		spectrogram.show_original = show_orig;
-		spectrogram_no_smoothing.show_original = show_orig;
+		spectrogram.show_original = IsKeyDown(KEY_LEFT_SHIFT);
 
 		Rectangle spec_bounds = { (float)x, (float)y, 480, 750 };
 		DrawSpectrogram(spectrogram, spec_bounds, "Spectrogram");
@@ -266,12 +294,8 @@ namespace resynth {
 		}
 		y += 800;
 
-		DrawSpectrogram(spectrogram_no_smoothing, Rectangle{ (float)x, (float)y, 480, 250 },
-			"Spectrogram without Hann smoothing");
-
-		// re-derive once the stroke ends, not every frame
-		if (edit_t_lo >= 0 && !brush.stroking) {
-			for (int ci = edit_t_lo; ci <= edit_t_hi; ci++) fourier.rederive_chunk_peaks(fourier.chunks[ci]);
+		if (edit_t_lo >= 0 && !brush.stroking && !brush.dragging) {
+			if (selected_chunk >= edit_t_lo && selected_chunk <= edit_t_hi) disp_chunk = -1;
 			edit_t_lo = edit_t_hi = -1;
 		}
 	}

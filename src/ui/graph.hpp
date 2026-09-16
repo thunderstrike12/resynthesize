@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include <vector>
+#include "../audio/fourier.hpp"
 
 namespace resynth {
     struct GraphView {
@@ -38,7 +39,6 @@ namespace resynth {
         bool built = false;
         Image image{};               // kept alive so we can repaint pixels
         float max_mag = 0.0f;        // colour normalisation reference
-        bool hann_smoothing = true;  // which chunk array this view reflects
         Texture2D original_texture{};
         bool show_original = false;
     };
@@ -58,14 +58,11 @@ namespace resynth {
         Vector2 drag_start{};
     };
 
-    // Builds the texture + raw magnitude grid from your chunk data. Call once whenever chunks change
-    // (e.g. right after "Construct Chunks"), not every frame — rebuilding is relatively expensive.
-    void BuildSpectrogram(SpectrogramData& spec, const struct Chunk* chunks, int chunk_count, float max_freq_bins = -1, bool hann_smooting = true);
+    void BuildSpectrogram(SpectrogramData& spec, const Fourier& fourier, float max_freq_hz = 0.0f);
+    bool EditSpectrogram(SpectrogramData& spec, Rectangle bounds, Chunk* chunks, int chunk_count, SpectrogramBrush& brush, int& out_t_lo, int& out_t_hi);
 
     // Draws the built spectrogram + hover readout. Cheap — call this every frame.
     void DrawSpectrogram(SpectrogramData& spec, Rectangle bounds, const char* label = nullptr);
-
-    bool EditSpectrogram(SpectrogramData& spec, Rectangle bounds, Chunk* chunks, int chunk_count, SpectrogramBrush& brush, int& out_t_lo, int& out_t_hi);
     bool PaintSpectrogram(SpectrogramData& spec, Rectangle bounds, Chunk* chunks, int chunk_count, SpectrogramBrush& brush, int& out_t_lo, int& out_t_hi);
 
     //tracking mouse wheel consumption
