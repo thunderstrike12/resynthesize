@@ -38,6 +38,7 @@ add_executable(${PROJECT_NAME}
     src/audio/fourier.cpp
     src/audio/audio_data.cpp
     src/audio/audio_player.cpp
+    src/audio/synth.cpp
     src/ui/graph.cpp
     ${tinyfiledialogs_SOURCE_DIR}/tinyfiledialogs.c
 )

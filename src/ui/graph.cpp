@@ -271,7 +271,8 @@ namespace resynth {
 			for (int f = 0; f < freq_count; f++) {
 				float g = f < (int)chunks[t].gain.size() ? chunks[t].gain[f] : 1.0f;
 				spec.magnitudes[(size_t)t * freq_count + f] = mag[f];
-				max_mag = std::max(max_mag, mag[f] * g);
+				//max_mag = std::max(max_mag, mag[f] * g);
+				max_mag = std::max(max_mag, mag[f]);
 			}
 		}
 		spec.max_mag = max_mag > 1e-9f ? max_mag : 1.0f;

@@ -23,9 +23,18 @@ namespace resynth {
 	struct Chunk {
 		float time_offset;
 		int nyquist;
+		float sample_rate;
 		std::vector<float> spec_real, spec_imag;  // full n, FFT of Hann-windowed frame
 		std::vector<float> gain;                  // per-bin multiplier, edits live here
 		std::vector<float> xf, yf, yh;            // time domain, for the curve graph
+		int n() const { return (int)spec_real.size(); }
+	};
+
+	struct SpectralProfile {
+		std::string name;
+		std::vector<float> mag;   // averaged magnitude, one per bin
+		float bin_hz;             // Hz per bin AT CAPTURE TIME
+		int frame_count;
 	};
 
 	class Fourier {
@@ -35,6 +44,9 @@ namespace resynth {
 		std::vector<Wave> waves;
 		std::vector<Chunk> chunks;
 		int max_peaks_per_chunk = 10;
+
+		std::vector<SpectralProfile> profiles;
+		int selected_profile = -1;
 
 		int nyquist = 0;
 		int window_size = 1000;
@@ -72,16 +84,19 @@ namespace resynth {
 		void apply_hann_window(const std::vector<float>& y, std::vector<float>& yh, int window_size);
 		void compute_spectrum_FFT_from_fourier(const std::vector<float>& y, std::vector<float>& spec_x, std::vector<float>& spec_y, std::vector<float>& phase, int nyquist);
 		void compute_spectrum_DFT_from_fourier(const std::vector<float>& y, std::vector<float>& spec_x, std::vector<float>& spec_y, std::vector<float>& phase, int nyquist);
-		void fill_spectrum_from_real_and_imag(const std::vector<float>& real, const std::vector<float>& imag, std::vector<float>& spec_x, std::vector<float>& spec_y, std::vector<float>& phase, int nyquist) const;
+		void fill_spectrum_from_real_and_imag(const std::vector<float>& real, const std::vector<float>& imag, std::vector<float>& spec_x, std::vector<float>& spec_y, std::vector<float>& phase, int sample_rate) const;
 		void sphere_fourier_at_frequency(const std::vector<float>& y, std::vector<float>& xs, std::vector<float>& ys, float frequency, int window_size);
 		void find_peaks_in_graph(const std::vector<float>& x, const std::vector<float>& y, std::vector<float>& phase, std::vector<Peak>& peaks);
-		//void rederive_chunk_peaks(Chunk& c);
-
 
 		std::vector<Peak> compute_peaks(const Chunk& c) const;
 
 		void construct_chunks_from_audio_data();
 		void compute_fourier_data(bool use_fft = true);
+
+		void subtract_profile(const SpectralProfile& profile, float alpha, float floor_g);
+		float profile_at_hz(const SpectralProfile& p, float hz) const;
+		SpectralProfile capture_profile_from_audio_data(const AudioData& src, const char* name, float percentile = 0.25f) const;
+		SpectralProfile capture_profile_from_spectrogram(const std::vector<Chunk>& c, const char* name, float percentile) const;
 
 		std::vector<float> build_buffer_from_audio_data() const;
 		std::vector<float> build_buffer_from_fourier_curve(int repeat_count = 200) const;

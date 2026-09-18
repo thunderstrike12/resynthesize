@@ -12,7 +12,7 @@ namespace resynth {
 	void App::RefreshDisplayChunk() {
 		if (fourier.chunks.empty()) return;
 		const Chunk& c = fourier.chunks[selected_chunk];
-		fourier.fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, disp_xc, disp_mag, disp_phase, c.nyquist);
+		fourier.fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, disp_xc, disp_mag, disp_phase, c.sample_rate);
 		for (int k = 0; k < c.nyquist; k++) disp_mag[k] *= c.gain[k];
 		disp_peaks = fourier.compute_peaks(c);
 
@@ -25,9 +25,9 @@ namespace resynth {
 			disp_xcr[j * 3 + 2] = p.freq; disp_ycr[j * 3 + 2] = 0.0f;
 		}
 
-		disp_yr.assign(fourier.window_size, 0.0f);
-		for (int i = 0; i < fourier.window_size; i++) {
-			float t = (float)i / (float)fourier.data.sample_rate;
+		disp_yr.assign(c.n(), 0.0f);
+		for (int i = 0; i < c.n(); i++) {
+			float t = (float)i / (float)c.sample_rate;
 			for (const Peak& p : disp_peaks)
 				disp_yr[i] += cosf(2.0f * PI * p.freq * t + p.phase) * p.magnitude;
 		}
@@ -67,6 +67,15 @@ namespace resynth {
 			fourier.data.load(audio_path);
 			fourier.use_wave_data = false;
 		}
+		if (GuiButton(Rectangle{ 320, (float)y + 40, 100, 30 }, "Capture Profile")) {
+			profile = fourier.capture_profile_from_audio_data(fourier.data, "profile", percentile);
+		}
+		if (GuiButton(Rectangle{ 320, (float)y + 80, 100, 30 }, "Capture Profile from spectro")) {
+			profile = fourier.capture_profile_from_spectrogram(fourier.chunks, "profile", percentile);
+		}
+		GuiSliderBar(Rectangle{ 500, (float)y + 40, 100, 30 }, "percentile",
+			TextFormat("%.2f", percentile), &percentile, 0.0f, 1.0f);
+
 		if (GuiButton(Rectangle{ 670, (float)y, 160, 30 }, "Play Audio Sound"))
 			PlayBuffer(sound_audio, has_audio, fourier.build_buffer_from_audio_data(), fourier.data.sample_rate);
 
@@ -267,6 +276,16 @@ namespace resynth {
 		};
 		DrawGraph(chunk_spectrum_series, 2, Rectangle{ (float)x, (float)y, 480, 150 }, view_chunk_reconstructed, "Chunk Spectrum");
 		y += 200;
+
+		GuiSliderBar(Rectangle{ (float)x + 350, (float)y, 100, 20 }, "alpha",
+			TextFormat("%.2f", alpha), &alpha, 0.0f, 1.0f);
+		y += 40;
+
+		if (GuiButton(Rectangle{ (float)x + 200, (float)y, 110, 20 },"Subtract Profile")) {
+			fourier.subtract_profile(profile, alpha, 0.05f);
+			BuildSpectrogram(spectrogram, fourier, 48000.0f);
+		}
+		y += 40;
 
 		GuiCheckBox(Rectangle{ (float)x, (float)y, 20, 20 }, "Edit Spectrogram", &brush.enabled);
 		if (brush.enabled) {

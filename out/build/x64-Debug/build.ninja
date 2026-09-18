@@ -94,6 +94,15 @@ build CMakeFiles\resynthesize.dir\src\audio\audio_player.cpp.obj: CXX_COMPILER__
   TARGET_COMPILE_PDB = CMakeFiles\resynthesize.dir\
   TARGET_PDB = resynthesize.pdb
 
+build CMakeFiles\resynthesize.dir\src\audio\synth.cpp.obj: CXX_COMPILER__resynthesize_unscanned_Debug C$:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\src\audio\synth.cpp || cmake_object_order_depends_target_resynthesize
+  DEFINES = -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP
+  FLAGS = /DWIN32 /D_WINDOWS /EHsc /Zi /Ob0 /Od /RTC1 -std:c++20 -MDd
+  INCLUDES = -IC:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\out\build\x64-Debug\_deps\tinyfiledialogs-src -IC:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\out\build\x64-Debug\_deps\raygui-src\src -IC:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\out\build\x64-Debug\_deps\raylib-src\src -IC:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\out\build\x64-Debug\_deps\raylib-src\src\external\glfw\include
+  OBJECT_DIR = CMakeFiles\resynthesize.dir
+  OBJECT_FILE_DIR = CMakeFiles\resynthesize.dir\src\audio
+  TARGET_COMPILE_PDB = CMakeFiles\resynthesize.dir\
+  TARGET_PDB = resynthesize.pdb
+
 build CMakeFiles\resynthesize.dir\src\ui\graph.cpp.obj: CXX_COMPILER__resynthesize_unscanned_Debug C$:\Users\loekv\OneDrive\Documenten\BUas\git\Year-4\Project-Audio\resynthesize\src\ui\graph.cpp || cmake_object_order_depends_target_resynthesize
   DEFINES = -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP
   FLAGS = /DWIN32 /D_WINDOWS /EHsc /Zi /Ob0 /Od /RTC1 -std:c++20 -MDd
@@ -120,7 +129,7 @@ build CMakeFiles\resynthesize.dir\_deps\tinyfiledialogs-src\tinyfiledialogs.c.ob
 #############################################
 # Link the executable resynthesize.exe
 
-build resynthesize.exe: CXX_EXECUTABLE_LINKER__resynthesize_Debug CMakeFiles\resynthesize.dir\src\main.cpp.obj CMakeFiles\resynthesize.dir\src\app\app.cpp.obj CMakeFiles\resynthesize.dir\src\audio\fourier.cpp.obj CMakeFiles\resynthesize.dir\src\audio\audio_data.cpp.obj CMakeFiles\resynthesize.dir\src\audio\audio_player.cpp.obj CMakeFiles\resynthesize.dir\src\ui\graph.cpp.obj CMakeFiles\resynthesize.dir\_deps\tinyfiledialogs-src\tinyfiledialogs.c.obj | _deps\raylib-build\raylib\raylib.lib || _deps\raylib-build\raylib\external\glfw\src\glfw _deps\raylib-build\raylib\raylib.lib
+build resynthesize.exe: CXX_EXECUTABLE_LINKER__resynthesize_Debug CMakeFiles\resynthesize.dir\src\main.cpp.obj CMakeFiles\resynthesize.dir\src\app\app.cpp.obj CMakeFiles\resynthesize.dir\src\audio\fourier.cpp.obj CMakeFiles\resynthesize.dir\src\audio\audio_data.cpp.obj CMakeFiles\resynthesize.dir\src\audio\audio_player.cpp.obj CMakeFiles\resynthesize.dir\src\audio\synth.cpp.obj CMakeFiles\resynthesize.dir\src\ui\graph.cpp.obj CMakeFiles\resynthesize.dir\_deps\tinyfiledialogs-src\tinyfiledialogs.c.obj | _deps\raylib-build\raylib\raylib.lib || _deps\raylib-build\raylib\external\glfw\src\glfw _deps\raylib-build\raylib\raylib.lib
   FLAGS = /DWIN32 /D_WINDOWS /EHsc /Zi /Ob0 /Od /RTC1 -MDd
   LINK_FLAGS = /machine:x64 /debug /INCREMENTAL /subsystem:console
   LINK_LIBRARIES = _deps\raylib-build\raylib\raylib.lib  winmm.lib  opengl32.lib  glu32.lib  winmm.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib

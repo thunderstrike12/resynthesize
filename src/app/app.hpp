@@ -40,6 +40,10 @@ namespace resynth {
         SpectrogramData spectrogram;
         SpectrogramBrush brush; int edit_t_lo = -1, edit_t_hi = -1;
 
+        SpectralProfile profile;
+        float alpha = 0.0f;
+        float percentile = 0.0f;
+
         void Unload(Sound& s, bool& has);
         void PlayBuffer(Sound& s, bool& has, const std::vector<float>& buffer, int sample_rate);
 

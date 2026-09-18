@@ -15,11 +15,10 @@ namespace {
 		int n = (int)real.size();
 		assert(imag.size() == (size_t)n);
 
-		// base case: nothing to split further
+		// nothing to split further
 		if (n <= 1) return;
 
-		// must be a power of 2 — this assert will fire loudly rather than silently
-		// producing wrong results if `detail` isn't one.
+		// must be a power of 2
 		assert((n & (n - 1)) == 0 && "FFT size must be a power of 2");
 
 		int half = n / 2;
@@ -43,7 +42,6 @@ namespace {
 			float twiddle_real = cosf(angle);
 			float twiddle_imag = sinf(angle);
 
-			// complex multiplication: twiddle * odd[k]
 			float t_real = twiddle_real * odd_real[k] - twiddle_imag * odd_imag[k];
 			float t_imag = twiddle_real * odd_imag[k] + twiddle_imag * odd_real[k];
 
@@ -136,7 +134,7 @@ namespace resynth {
 		int n = (int)y.size();
 		for (int j = 1; j < n - 1; j++) {
 			if (y[j] > y[j - 1] && y[j] > y[j + 1]) {
-				peaks.push_back({ x[j], y[j], phase[j]});
+				peaks.push_back({ x[j], y[j], phase[j] });
 			}
 		}
 		std::sort(peaks.begin(), peaks.end(), [](const Peak& a, const Peak& b) { return a.magnitude > b.magnitude; });
@@ -144,20 +142,21 @@ namespace resynth {
 	void Fourier::fill_spectrum_from_real_and_imag(
 		const std::vector<float>& real, const std::vector<float>& imag,
 		std::vector<float>& spec_x, std::vector<float>& spec_y,
-		std::vector<float>& phase, int nyquist) const {
+		std::vector<float>& phase, int sample_rate) const {
 		int n = (int)real.size();
-		spec_x.resize(nyquist); spec_y.resize(nyquist); phase.resize(nyquist);
-		for (int k = 0; k < nyquist; k++) {
+		int nq = n / 2;
+		spec_x.resize(nq); spec_y.resize(nq); phase.resize(nq);
+		for (int k = 0; k < nq; k++) {
 			float re = real[k], im = imag[k];
 			float scale = (k == 0 ? 1.0f : 2.0f) / (float)n;
-			spec_x[k] = bin_to_hz(k);
+			spec_x[k] = k * sample_rate / (float)n;
 			spec_y[k] = sqrtf(re * re + im * im) * scale;
 			phase[k] = atan2f(im, re);
 		}
 	}
 	std::vector<Peak> Fourier::compute_peaks(const Chunk& c) const {
 		std::vector<float> xc, mag, ph;
-		fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, xc, mag, ph, c.nyquist);
+		fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, xc, mag, ph, c.sample_rate);
 		for (int k = 0; k < c.nyquist; k++) mag[k] *= c.gain[k];
 
 		std::vector<Peak> peaks;
@@ -183,39 +182,16 @@ namespace resynth {
 			c.time_offset = (float)start / (float)data.sample_rate;
 			c.nyquist = chunk_nyquist;
 			c.gain.assign(c.nyquist, 1.0f);
+			c.sample_rate = data.sample_rate;
 
 
 			construct_fourier_from_audio_data(c.xf, c.yf, data.samples, window_size, start);
 			apply_hann_window(c.yf, c.yh, window_size);
 
-			c.spec_real = c.yh;                        // n entries
-			c.spec_imag.assign(window_size, 0.0f);     // n entries
+			c.spec_real = c.yh;
+			c.spec_imag.assign(window_size, 0.0f);
 
 			FFT(c.spec_real, c.spec_imag);
-			/*
-			compute_spectrum_FFT(c.yf, c.xc, c.yc, c.phase, chunk_nyquist);
-			compute_spectrum_FFT(c.yh, c.xc, c.ych, c.phase_h, chunk_nyquist);
-
-			find_peaks_in_graph(c.xc, c.ych, c.phase_h, c.peaks);
-
-			c.yr.assign(window_size, 0.0f);
-			for (auto& peak : c.peaks) {
-				for (int i = 0; i < window_size; i++) {
-					float t = time_for_index(i);
-					c.yr[i] += sinf(2.0f * PI * t * peak.freq + peak.phase) * peak.magnitude;
-				}
-			}
-
-			c.xcr.resize(c.peaks.size() * 3);
-			c.ycr.resize(c.peaks.size() * 3);
-			for (int j = 0; j < (int)c.peaks.size(); j++) {
-				auto& peak = c.peaks[j];
-				c.xcr[j * 3] = peak.freq;     c.ycr[j * 3] = 0.0f;
-				c.xcr[j * 3 + 1] = peak.freq; c.ycr[j * 3 + 1] = peak.magnitude;
-				c.xcr[j * 3 + 2] = peak.freq; c.ycr[j * 3 + 2] = 0.0f;
-			}
-			*/
-
 			chunks.push_back(std::move(c));
 		}
 	}
@@ -247,6 +223,143 @@ namespace resynth {
 
 			find_peaks_in_graph(xc, ych, phase_h, peaks);
 		}
+	}
+	void Fourier::subtract_profile(const SpectralProfile& profile, float alpha, float floor_g) {
+		if (profile.mag.empty()) return;
+		for (Chunk& c : chunks) {
+			std::vector<float> xc, mag, ph;
+			fill_spectrum_from_real_and_imag(c.spec_real, c.spec_imag, xc, mag, ph, c.sample_rate);
+			for (int k = 0; k < c.nyquist; k++) {
+				if (mag[k] < 1e-9f) continue;
+				float p = profile_at_hz(profile, xc[k]);
+				c.gain[k] = std::max(1.0f - alpha * p / mag[k], floor_g);
+			}
+		}
+	}
+	float Fourier::profile_at_hz(const SpectralProfile& p, float hz) const {
+		if (p.mag.empty() || p.bin_hz <= 0.0f) return 0.0f;
+		float b = hz / p.bin_hz;
+		if (b <= 0.0f) return p.mag.front();
+		if (b >= (float)(p.mag.size() - 1)) return p.mag.back();
+		int i = (int)b;
+		return Lerp(p.mag[i], p.mag[i + 1], b - (float)i);
+	}
+
+	SpectralProfile Fourier::capture_profile_from_audio_data(const AudioData& src, const char* name, float percentile) const {
+		SpectralProfile prof;
+		prof.name = name ? name : "";
+		prof.bin_hz = 0.0f;
+		prof.frame_count = 0;
+
+		const int n = window_size;
+		const int nq = n / 2;
+		const int hop = n / 2;
+
+		// same constraint the chunk pipeline has
+		if (n <= 1 || (n & (n - 1)) != 0) return prof;
+		if (src.sample_rate <= 0) return prof;
+		if ((int)src.samples.size() < n) return prof;
+
+		// precompute the Hann window once
+		std::vector<float> win(n);
+		for (int i = 0; i < n; i++)
+			win[i] = 0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)n));
+
+		const int total = (int)src.samples.size();
+		const int frames = (total - n) / hop + 1;
+
+		// frame-major magnitude table: [f * nq + k]
+		std::vector<float> table((size_t)frames * nq);
+		std::vector<float> energy(frames, 0.0f);
+
+		std::vector<float> re(n), im(n);
+		for (int f = 0; f < frames; f++) {
+			const int base = f * hop;
+			for (int i = 0; i < n; i++) {
+				re[i] = src.samples[base + i] * win[i];
+				im[i] = 0.0f;
+			}
+			FFT(re, im);
+
+			float e = 0.0f;
+			for (int k = 0; k < nq; k++) {
+				// must match fill_spectrum_from_real_and_imag exactly
+				float scale = (k == 0 ? 1.0f : 2.0f) / (float)n;
+				float m = sqrtf(re[k] * re[k] + im[k] * im[k]) * scale;
+				table[(size_t)f * nq + k] = m;
+				e += m * m;
+			}
+			energy[f] = e;
+		}
+
+		// energy gate: keep frames above 10% of the median frame energy,
+		// so leading/trailing silence doesn't drag the estimate down
+		std::vector<char> keep(frames, 1);
+		int kept = frames;
+		{
+			std::vector<float> sorted = energy;
+			std::nth_element(sorted.begin(), sorted.begin() + frames / 2, sorted.end());
+			float gate = sorted[frames / 2] * 0.1f;
+			kept = 0;
+			for (int f = 0; f < frames; f++) {
+				keep[f] = energy[f] >= gate ? 1 : 0;
+				kept += keep[f];
+			}
+			if (kept == 0) { std::fill(keep.begin(), keep.end(), 1); kept = frames; }
+		}
+
+		// per-bin 25th percentile across the kept frames — tracks the
+		// steady floor rather than the transients
+		prof.mag.assign(nq, 0.0f);
+		std::vector<float> scratch;
+		scratch.reserve(kept);
+		for (int k = 0; k < nq; k++) {
+			scratch.clear();
+			for (int f = 0; f < frames; f++)
+				if (keep[f]) scratch.push_back(table[(size_t)f * nq + k]);
+
+			size_t idx = std::min(scratch.size() - 1, (size_t)(percentile * (float)(scratch.size() - 1)));
+			std::nth_element(scratch.begin(), scratch.begin() + idx, scratch.end());
+			prof.mag[k] = scratch[idx];
+		}
+
+		prof.bin_hz = (float)src.sample_rate / (float)n;
+		prof.frame_count = kept;
+		return prof;
+	}
+
+	SpectralProfile Fourier::capture_profile_from_spectrogram(const std::vector<Chunk>& c, const char* name, float percentile) const {
+		SpectralProfile prof;
+		if (c.empty())return prof;
+		int nq = c[0].nyquist;
+		prof.name = name ? name : "";
+		prof.bin_hz = c[0].sample_rate / (float)(2 * nq);
+		prof.frame_count = c.size();
+
+		prof.mag.assign(nq, 0.0f);
+
+		std::vector<float> table((size_t)c.size() * nq);
+		for (int i = 0; i < c.size(); i++) {
+			std::vector<float> xc, mag, ph;
+			fill_spectrum_from_real_and_imag(c[i].spec_real, c[i].spec_imag, xc, mag, ph, c[i].sample_rate);
+			for (int j = 0; j < nq; j++) {
+				table[i * nq + j] = mag[j] * c[i].gain[j];
+			}
+		}
+
+		int idx = std::min((int)((float)c.size() * percentile), (int)c.size() - 1);
+		for (int f = 0; f < nq; f++)
+		{
+			std::vector<float> bin_mags;
+			bin_mags.assign(c.size(), 0.0f);
+			for (int b = 0; b < c.size(); b++) {
+				bin_mags[b] = table[b * nq + f];
+			}
+			std::sort(bin_mags.begin(), bin_mags.end());
+
+			prof.mag[f] = bin_mags[idx];
+		}
+		return prof;
 	}
 
 	std::vector<float> Fourier::build_buffer_from_audio_data() const {
@@ -280,7 +393,7 @@ namespace resynth {
 
 	std::vector<float> Fourier::build_buffer_from_chunks_using_IFFT() const {
 		if (chunks.empty()) return {};
-		const int n = window_size;
+		const int n = chunks[0].n();
 		const int hop = n / 2;
 		std::vector<float> buffer(hop * ((int)chunks.size() - 1) + n, 0.0f);
 
@@ -306,18 +419,18 @@ namespace resynth {
 
 	std::vector<float> Fourier::build_buffer_from_chunks_using_peaks() const {
 		if (chunks.empty()) return {};
-		const int n = window_size;
+		const int n = chunks[0].n();
 		const int hop = n / 2;
 		std::vector<float> buffer(hop * ((int)chunks.size() - 1) + n, 0.0f);
 
 		for (int ci = 0; ci < (int)chunks.size(); ci++) {
 			std::vector<Peak> peaks = compute_peaks(chunks[ci]);
 			int base = ci * hop;
-			for (int i = 0; i < window_size; i++) {
-				float t = (float)i / (float)data.sample_rate;
+			for (int i = 0; i < n; i++) {
+				float t = (float)i / (float)chunks[ci].sample_rate;
 				float sample = 0.0f;
 				for (const auto& p : peaks) sample += cosf(2.0f * PI * p.freq * t + p.phase) * p.magnitude;
-				float w = 0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)window_size));
+				float w = 0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)n));
 				buffer[base + i] += sample * w;
 			}
 		}
@@ -326,7 +439,7 @@ namespace resynth {
 	}
 
 	std::vector<float> Fourier::build_buffer_from_single_chunk_using_IFFT(const Chunk& c, int repeat_count) const {
-		const int n = window_size;
+		const int n = c.n();
 		std::vector<float> re = c.spec_real, im = c.spec_imag;
 		for (int k = 0; k < c.nyquist; k++) {
 			float g = c.gain[k];
@@ -335,7 +448,7 @@ namespace resynth {
 			if (k > 0) { re[n - k] *= g; im[n - k] *= g; }
 		}
 		IFFT(re, im);
-		// re now holds one Hann-windowed frame — it already fades to zero at both ends
+
 		std::vector<float> buffer(n * repeat_count);
 		for (int r = 0; r < repeat_count; r++)
 			std::copy(re.begin(), re.begin() + n, buffer.begin() + r * n);
@@ -343,12 +456,12 @@ namespace resynth {
 	}
 
 	std::vector<float> Fourier::build_buffer_from_single_chunk_using_peaks(const Chunk& c, int repeat_count) const {
-		const int n = window_size;
-		std::vector<Peak> peaks = compute_peaks(c);   // gain-masked, already truncated
+		const int n = c.n();
+		std::vector<Peak> peaks = compute_peaks(c);
 
 		std::vector<float> single(n, 0.0f);
 		for (int i = 0; i < n; i++) {
-			float t = (float)i / (float)data.sample_rate;
+			float t = (float)i / (float)c.sample_rate;
 			float sample = 0.0f;
 			for (const auto& p : peaks)
 				sample += cosf(2.0f * PI * p.freq * t + p.phase) * p.magnitude;
