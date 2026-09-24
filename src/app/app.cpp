@@ -5,10 +5,296 @@
 #include "raymath.h"
 #include "../audio/audio_player.hpp"
 #include "../ui/graph.hpp"
+#include "../ui/ui_helper.hpp"
 #include "tinyfiledialogs.h"
 #include <algorithm>
+#include <iostream>
+
+namespace {
+	// A0 is index 0, so i % 12 gives A A# B C C# D D# E F F# G G#
+	inline bool IsBlackKey(int i) {
+		int s = i % 12;
+		return s == 1 || s == 4 || s == 6 || s == 9 || s == 11;
+	}
+	const char* kNoteNames[12] = { "A","A#","B","C","C#","D","D#","E","F","F#","G","G#" };
+
+	// octave rolls over at C, which sits 3 semitones above A0
+	inline int OctaveOf(int i) { return (i + 9) / 12; }
+
+	const int kKeyCodes[] = {
+		KEY_Z, KEY_S, KEY_X, KEY_D, KEY_C, KEY_V, KEY_G,
+		KEY_B, KEY_H, KEY_N, KEY_J, KEY_M, KEY_COMMA, KEY_L, KEY_PERIOD,
+		KEY_Q, KEY_TWO, KEY_W, KEY_THREE, KEY_E, KEY_R, KEY_FIVE,
+		KEY_T, KEY_SIX, KEY_Y, KEY_SEVEN, KEY_U
+	};
+	const char* kKeyNames[] = {
+		"Z","S","X","D","C","V","G","B","H","N","J","M",",","L",".",
+		"Q","2","W","3","E","R","5","T","6","Y","7","U"
+	};
+	constexpr int kKeyCodeCount = (int)(sizeof(kKeyCodes) / sizeof(kKeyCodes[0]));
+
+
+	// maps a slider position (0..1) to x across the strip
+	inline float BandX(Rectangle r, float u) { return r.x + u * r.width; }
+
+	void DrawFilterBand(Rectangle r, float lp_u, float hp_u, bool invert, float lp_curr, float hp_curr) {
+		DrawRectangleRec(r, Color{ 252, 252, 254, 255 });
+
+		// decade gridlines at 100, 1k, 10k  (u = log(hz/20) / log(1000))
+		const float marks[3] = { 100.0f, 1000.0f, 10000.0f };
+		const char* labels[3] = { "100", "1k", "10k" };
+		for (int i = 0; i < 3; i++) {
+			float u = logf(marks[i] / 20.0f) / logf(1000.0f);
+			float x = BandX(r, u);
+			DrawLine((int)x, (int)r.y, (int)x, (int)(r.y + r.height), Color{ 232, 232, 238, 255 });
+			DrawTextEx(resynth::g_app_font, labels[i], { x + 3, r.y + r.height - 15 }, 11, 1.0f,
+				Color{ 175, 175, 185, 255 });
+		}
+		
+		float lx = BandX(r, lp_u), hx = BandX(r, hp_u);
+		if (invert) {
+			if (lx > hx) {
+				//DrawRectangleRec(Rectangle{ hx, r.y, lx - hx, r.height }, Color{ 190, 220, 248, 255 });
+
+				DrawRectangleRec(Rectangle{ r.x, r.y, hx - r.x, r.height }, Color{ 190, 220, 248, 255 });
+				DrawRectangleRec(Rectangle{ lx, r.y, r.width - (lx - r.x) , r.height }, Color{ 190, 220, 248, 255 });
+			}
+		}
+		else {
+			if (lx > hx)
+				DrawRectangleRec(Rectangle{ hx, r.y, lx - hx, r.height }, Color{ 190, 220, 248, 255 });
+		}
+		DrawLineEx({ hx, r.y }, { hx, r.y + r.height }, 2.0f, Color{ 190, 90, 60, 255 });
+		DrawLineEx({ lx, r.y }, { lx, r.y + r.height }, 2.0f, Color{ 60, 120, 190, 255 });
+
+		lx = BandX(r, lp_curr), hx = BandX(r, hp_curr);
+		DrawLineEx({ hx, r.y }, { hx, r.y + r.height }, 2.0f, Color{ 190, 90, 60, 255 });
+		DrawLineEx({ lx, r.y }, { lx, r.y + r.height }, 2.0f, Color{ 60, 120, 190, 255 });
+
+		DrawRectangleLinesEx(r, 1, Color{ 200, 200, 208, 255 });
+	}
+}
 
 namespace resynth {
+	void App::DrawViewTabs() {
+		if (GuiButton(Rectangle{ 20, 5, 120, 30 }, "Analysis")) view = View::Analysis;
+		if (GuiButton(Rectangle{ 150, 5, 120, 30 }, "Synth"))    view = View::Synth;
+	}
+
+	void App::DrawSynthSection() {
+		const float py = 60.0f, ph = 220.0f;   // row 1
+		const float py2 = py + ph + 24, ph2 = 190.0f;   // row 2
+
+		const float ex = 20.0f, ew = 420.0f;   // envelope
+		const float fx = 456.0f, fw = 420.0f;   // filter
+		const float ox = 892.0f, ow = 280.0f;   // oscillator
+		const float vx = 1188.0f, vw = 340.0f;   // preview
+
+		auto Panel = [&](float x, float y, float w, float h, const char* title) {
+			DrawRectangleRec(Rectangle{ x, y, w, h }, Color{ 248, 248, 250, 255 });
+			DrawRectangleLinesEx(Rectangle{ x, y, w, h }, 1, Color{ 200, 200, 208, 255 });
+			DrawTextEx(g_app_font, title, { x + 16, y + 12 }, 16, 1.0f, DARKGRAY);
+			};
+
+		// four ADSR sliders in a column; returns the y below them
+		auto EnvSliders = [&](float x, float w, float y,
+			float& a, float& d, float& s, float& r) {
+				const float sx = x + 86, sw = w - 106;
+				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "attack",
+					TextFormat("%.0f ms", a * 1000.0f), &a, 0.0f, 1.0f);  y += 30;
+				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "decay",
+					TextFormat("%.0f ms", d * 1000.0f), &d, 0.0f, 1.0f);  y += 30;
+				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "sustain",
+					TextFormat("%.2f", s), &s, 0.0f, 1.0f);               y += 30;
+				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "release",
+					TextFormat("%.0f ms", r * 1000.0f), &r, 0.0f, 1.0f);  y += 30;
+				return y;
+			};
+
+		Vector2 mouse = GetMousePosition();
+
+		// ---- amplitude envelope -----------------------------------------
+		Panel(ex, py, ew, ph, "Amp Envelope");
+		EnvSliders(ex, ew, py + 48, synth.attack, synth.decay, synth.sustain, synth.release);
+
+		// ---- filter -----------------------------------------------------
+		Panel(fx, py, fw, ph, "Filter");
+		{
+			DrawFilterBand(Rectangle{ fx + 20, py + 44, fw - 40, 54 },
+				synth.lp_cutoff, synth.hp_cutoff, synth.invert, synth.dbg_lp, synth.dbg_hp);
+
+			float sy = py + 112;
+			GuiSliderBar(Rectangle{ fx + 86, sy, 240, 20 }, "low cut",
+				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.hp_cutoff)),
+				&synth.hp_cutoff, 0.0f, 1.0f);
+			sy += 32;
+			GuiSliderBar(Rectangle{ fx + 86, sy, 240, 20 }, "high cut",
+				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.lp_cutoff)),
+				&synth.lp_cutoff, 0.0f, 1.0f);
+			sy += 32;
+			GuiCheckBox(Rectangle{ fx + 86, sy, 20, 20 }, "invert", &synth.invert);
+		}
+
+		// ---- oscillator -------------------------------------------------
+		Panel(ox, py, ow, ph, "Oscillator");
+		{
+			const WaveShape shapes[4] = { WaveShape::SINE, WaveShape::SAW,
+										  WaveShape::SQUARE, WaveShape::TRIANGLE };
+			const char* names[4] = { "sine", "saw", "square", "tri" };
+
+			for (int i = 0; i < 4; i++) {
+				Rectangle r = { ox + 24 + (float)(i % 2) * 118,
+								py + 48 + (float)(i / 2) * 74, 110, 62 };
+				bool active = synth.wave_shape == shapes[i];
+				bool hover = CheckCollisionPointRec(mouse, r);
+
+				if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) synth.wave_shape = shapes[i];
+
+				DrawRectangleRec(r, active ? Color{ 225, 238, 252, 255 }
+				: (hover ? Color{ 244, 244, 248, 255 } : Color{ 252, 252, 254, 255 }));
+				DrawRectangleLinesEx(r, active ? 2.0f : 1.0f,
+					active ? Color{ 60, 120, 190, 255 } : Color{ 200, 200, 208, 255 });
+
+				Vector2 ns = MeasureTextEx(g_app_font, names[i], 13, 1.0f);
+				DrawTextEx(g_app_font, names[i],
+					{ r.x + (r.width - ns.x) * 0.5f, r.y + r.height - 20 }, 13, 1.0f,
+					active ? Color{ 40, 100, 175, 255 } : Color{ 130, 130, 140, 255 });
+			}
+		}
+
+		// ---- preview ----------------------------------------------------
+		Panel(vx, py, vw, ph, "Waveform");
+		{
+			synth.fill_preview_graph(512, 3);
+			GraphSeries preview_series[] = {
+				{ synth.x.data(), synth.y.data(), (int)synth.x.size(), SKYBLUE, nullptr },
+			};
+			DrawGraph(preview_series, 1,
+				Rectangle{ vx + 76, py + 56, vw - 100, ph - 106 }, view_synth_preview);
+		}
+
+		// ---- low-cut envelope (drives hp_cutoff) ------------------------
+		Panel(ex, py2, ew, ph2, "Low-cut Envelope");
+		{
+			float y = EnvSliders(ex, ew, py2 + 44,
+				synth.hp_attack, synth.hp_decay, synth.hp_sustain, synth.hp_release);
+			GuiSliderBar(Rectangle{ ex + 86, y, ew - 106, 20 }, "amount",
+				TextFormat("%+.2f", synth.hp_env_amount), &synth.hp_env_amount, -1.0f, 1.0f);
+		}
+
+		// ---- high-cut envelope (drives lp_cutoff) -----------------------
+		Panel(fx, py2, fw, ph2, "High-cut Envelope");
+		{
+			float y = EnvSliders(fx, fw, py2 + 44,
+				synth.lp_attack, synth.lp_decay, synth.lp_sustain, synth.lp_release);
+			GuiSliderBar(Rectangle{ fx + 86, y, fw - 106, 20 }, "amount",
+				TextFormat("%+.2f", synth.lp_env_amount), &synth.lp_env_amount, -1.0f, 1.0f);
+		}
+
+		// ---- keyboard ---------------------------------------------------
+		const float kpy = py2 + ph2 + 28;
+		DrawTextEx(g_app_font, "Keyboard", { ex, kpy }, 16, 1.0f, DARKGRAY);
+
+		{
+			float start_f = (float)key_view_start;
+			GuiSliderBar(Rectangle{ ex + 180, kpy, 240, 20 }, "first",
+				TextFormat("%s%d", kNoteNames[key_view_start % 12], OctaveOf(key_view_start)),
+				&start_f, 0.0f, 87.0f);
+			key_view_start = std::clamp((int)start_f, 0, 87);
+			while (key_view_start > 0 && IsBlackKey(key_view_start)) key_view_start--;
+
+			float count_f = (float)key_view_count;
+			GuiSliderBar(Rectangle{ ex + 560, kpy, 240, 20 }, "shown",
+				TextFormat("%d", key_view_count), &count_f, 7.0f, 61.0f);
+			key_view_count = std::clamp((int)count_f, 7, 88 - key_view_start);
+
+			DrawTextEx(g_app_font,
+				TextFormat("%.1f Hz  -  %.1f Hz",
+					synth.keys[key_view_start].frequency,
+					synth.keys[key_view_start + key_view_count - 1].frequency),
+				{ ex + 880, kpy + 3 }, 14, 1.0f, Color{ 140, 140, 150, 255 });
+		}
+
+		const int first = key_view_start;
+		const int last = first + key_view_count;
+		const float ky = kpy + 36, wh = 150, bh = 96;
+
+		int white_count = 0;
+		for (int i = first; i < last; i++) if (!IsBlackKey(i)) white_count++;
+		const float ww = std::min(56.0f, 1500.0f / (float)std::max(white_count, 1));
+		const float bw = ww * 0.62f;
+
+		bool mouse_down = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+
+		std::vector<float> kx(key_view_count);
+		{
+			int w = 0;
+			for (int i = first; i < last; i++) {
+				if (IsBlackKey(i)) kx[i - first] = ex + (float)w * ww - bw * 0.5f;
+				else               kx[i - first] = ex + (float)w++ * ww;
+			}
+		}
+
+		int hit = -1;
+		for (int i = first; i < last && hit < 0; i++)
+			if (IsBlackKey(i) && CheckCollisionPointRec(mouse, Rectangle{ kx[i - first], ky, bw, bh }))
+				hit = i;
+		for (int i = first; i < last && hit < 0; i++)
+			if (!IsBlackKey(i) && CheckCollisionPointRec(mouse, Rectangle{ kx[i - first], ky, ww, wh }))
+				hit = i;
+
+		// pass 1: white keys
+		for (int i = first; i < last; i++) {
+			if (IsBlackKey(i)) continue;
+			Key& k = synth.keys[i];
+			int j = i - first;
+			bool kb = j < kKeyCodeCount && IsKeyDown(kKeyCodes[j]);
+			k.is_down = (hit == i && mouse_down) || kb;
+
+			Rectangle r = { kx[j], ky, ww, wh };
+			float lvl = std::clamp(k.level, 0.0f, 1.0f);
+			DrawRectangleRec(r, Color{
+				(unsigned char)Lerp(252.0f, 120.0f, lvl),
+				(unsigned char)Lerp(252.0f, 180.0f, lvl),
+				(unsigned char)Lerp(255.0f, 245.0f, lvl), 255 });
+			DrawRectangleLinesEx(r, 1, Color{ 170, 170, 178, 255 });
+
+			const char* note = TextFormat("%s%d", kNoteNames[i % 12], OctaveOf(i));
+			Vector2 ns = MeasureTextEx(g_app_font, note, 13, 1.0f);
+			DrawTextEx(g_app_font, note, { r.x + (ww - ns.x) * 0.5f, ky + wh - 22 },
+				13, 1.0f, Color{ 150, 150, 160, 255 });
+
+			if (j < kKeyCodeCount) {
+				Vector2 ts = MeasureTextEx(g_app_font, kKeyNames[j], 17, 1.0f);
+				DrawTextEx(g_app_font, kKeyNames[j], { r.x + (ww - ts.x) * 0.5f, ky + wh - 46 },
+					17, 1.0f, Color{ 90, 90, 100, 255 });
+			}
+		}
+
+		// pass 2: black keys, over the whites
+		for (int i = first; i < last; i++) {
+			if (!IsBlackKey(i)) continue;
+			Key& k = synth.keys[i];
+			int j = i - first;
+			bool kb = j < kKeyCodeCount && IsKeyDown(kKeyCodes[j]);
+			k.is_down = (hit == i && mouse_down) || kb;
+
+			Rectangle r = { kx[j], ky, bw, bh };
+			float lvl = std::clamp(k.level, 0.0f, 1.0f);
+			DrawRectangleRec(r, Color{
+				(unsigned char)Lerp(40.0f, 90.0f, lvl),
+				(unsigned char)Lerp(40.0f, 150.0f, lvl),
+				(unsigned char)Lerp(48.0f, 220.0f, lvl), 255 });
+			DrawRectangleLinesEx(r, 1, Color{ 20, 20, 26, 255 });
+
+			if (j < kKeyCodeCount) {
+				Vector2 ts = MeasureTextEx(g_app_font, kKeyNames[j], 14, 1.0f);
+				DrawTextEx(g_app_font, kKeyNames[j], { r.x + (bw - ts.x) * 0.5f, ky + bh - 24 },
+					14, 1.0f, Color{ 220, 220, 228, 255 });
+			}
+		}
+	}
+
 	void App::RefreshDisplayChunk() {
 		if (fourier.chunks.empty()) return;
 		const Chunk& c = fourier.chunks[selected_chunk];
@@ -89,23 +375,23 @@ namespace resynth {
 		}
 
 		float window_size = (float)fourier.window_size;
-		GuiSliderBar(Rectangle{ (float)1060, 50, 300, 20 }, "window size", TextFormat("%.1f", (float)fourier.window_size), &window_size, 2.0f, 22050);
+		GuiSliderBar(Rectangle{ (float)1100, (float)y, 300, 20 }, "window size", TextFormat("%.1f", (float)fourier.window_size), &window_size, 2.0f, 22050);
 		if (window_size_power_of_2) {
 			int power = (int)round(log2(window_size));
 			window_size = (float)pow(2, power);
 		}
 		fourier.window_size = (int)window_size;
-		GuiCheckBox(Rectangle{ 1410, 50, 20, 20 }, "Window Size Power of 2", &window_size_power_of_2);
+		GuiCheckBox(Rectangle{ 1450, (float)y, 20, 20 }, "Window Size Power of 2", &window_size_power_of_2);
 
 		int sample_rate = fourier.data.sample_rate > 0 ? fourier.data.sample_rate : 44100;
 		float segment_duration = sample_rate > 0 ? (float)fourier.window_size / (float)sample_rate : 0.0f;
 		int frequencies_per_segment = fourier.window_size / 2;
 		float frequency_spacing = sample_rate > 0 ? (float)sample_rate / (float)fourier.window_size : 0.0f;
 
-		DrawTextEx(g_app_font, TextFormat("Samples per segment: %d", fourier.window_size), { 1060, 75 }, 14, 1.0f, DARKGRAY);
-		DrawTextEx(g_app_font, TextFormat("Segment duration: %.2f ms", segment_duration * 1000.0f), { 1060, 93 }, 14, 1.0f, DARKGRAY);
-		DrawTextEx(g_app_font, TextFormat("Frequencies per segment: %d", frequencies_per_segment), { 1060, 111 }, 14, 1.0f, DARKGRAY);
-		DrawTextEx(g_app_font, TextFormat("Frequency spacing: %.2f Hz", frequency_spacing), { 1060, 129 }, 14, 1.0f, DARKGRAY);
+		DrawTextEx(g_app_font, TextFormat("Samples per segment: %d", fourier.window_size), { 1100, (float)y + 25 }, 14, 1.0f, DARKGRAY);
+		DrawTextEx(g_app_font, TextFormat("Segment duration: %.2f ms", segment_duration * 1000.0f), { 1100, (float)y + 43 }, 14, 1.0f, DARKGRAY);
+		DrawTextEx(g_app_font, TextFormat("Frequencies per segment: %d", frequencies_per_segment), { 1100, (float)y + 61 }, 14, 1.0f, DARKGRAY);
+		DrawTextEx(g_app_font, TextFormat("Frequency spacing: %.2f Hz", frequency_spacing), { 1100, (float)y + 79 }, 14, 1.0f, DARKGRAY);
 	}
 
 	void App::DrawManualSection() {
@@ -199,9 +485,9 @@ namespace resynth {
 		for (int i = 0; i < (int)fourier.waves.size(); i++) {
 			auto& w = fourier.waves[i];
 			GuiSliderBar(Rectangle{ (float)x, (float)y, 200, 20 }, "freq", TextFormat("%.1f", w.frequency), &w.frequency, 0.0f, (float)fourier.nyquist);
-			GuiSliderBar(Rectangle{ (float)x + 260, (float)y, 200, 20 }, "amp", TextFormat("%.2f", w.amplitude), &w.amplitude, 0.0f, 2.0f);
-			GuiSliderBar(Rectangle{ (float)x + 520, (float)y, 200, 20 }, "phase", TextFormat("%.2f", w.phase), &w.phase, -PI, PI);
-			if (GuiButton(Rectangle{ (float)x + 760, (float)y, 60, 20 }, "Remove")) { fourier.waves.erase(fourier.waves.begin() + i); i--; }
+			GuiSliderBar(Rectangle{ (float)x + 280, (float)y, 200, 20 }, "amp", TextFormat("%.2f", w.amplitude), &w.amplitude, 0.0f, 2.0f);
+			GuiSliderBar(Rectangle{ (float)x + 560, (float)y, 200, 20 }, "phase", TextFormat("%.2f", w.phase), &w.phase, -PI, PI);
+			if (GuiButton(Rectangle{ (float)x + 820, (float)y, 60, 20 }, "Remove")) { fourier.waves.erase(fourier.waves.begin() + i); i--; }
 			y += 25;
 		}
 		if (GuiButton(Rectangle{ (float)x, (float)y, 120, 30 }, "Add Wave"))
@@ -281,7 +567,7 @@ namespace resynth {
 			TextFormat("%.2f", alpha), &alpha, 0.0f, 1.0f);
 		y += 40;
 
-		if (GuiButton(Rectangle{ (float)x + 200, (float)y, 110, 20 },"Subtract Profile")) {
+		if (GuiButton(Rectangle{ (float)x + 200, (float)y, 110, 20 }, "Subtract Profile")) {
 			fourier.subtract_profile(profile, alpha, 0.05f);
 			BuildSpectrogram(spectrogram, fourier, 48000.0f);
 		}
@@ -319,20 +605,37 @@ namespace resynth {
 		}
 	}
 
+	void App::Init()
+	{
+		synth.Init(48000);
+	}
+
 	void App::Update() {
 		ResetGraphWheelConsumption();
 
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
-		DrawTopBar();
-		DrawManualSection();
-		DrawChunkSection();
+		DrawViewTabs();
+		if (view == View::Analysis) {
+			DrawTopBar();
+			DrawManualSection();
+			DrawChunkSection();
+		}
+		else {
+			DrawSynthSection();
+			synth.Update();
+		}
 		EndDrawing();
 
 		if (!WasGraphWheelConsumed()) {
 			scroll_offset -= GetMouseWheelMove() * 40.0f;
 			scroll_offset = std::max(scroll_offset, 0.0f);
 		}
+	}
+
+	void App::Shutdown()
+	{
+		synth.Shutdown();
 	}
 
 }  // namespace resynth

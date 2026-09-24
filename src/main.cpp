@@ -3,6 +3,7 @@
 #include "raygui.h"
 #include "app/app.hpp"
 #include "app/app_font.hpp"
+#include <iostream>
 namespace resynth { Font g_app_font; }
 
 int main() {
@@ -22,6 +23,7 @@ int main() {
 	//GuiSetStyle(DEFAULT, TEXT_COLOR_NORMAL, ColorToInt(DARKGRAY));
 
 	resynth::App app;
+	app.Init();
 	while (!WindowShouldClose()) app.Update();
 
 	CloseAudioDevice();
