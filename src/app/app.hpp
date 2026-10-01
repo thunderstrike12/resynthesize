@@ -39,7 +39,8 @@ namespace resynth {
 		int disp_chunk = -1;
 
 		void RefreshDisplayChunk();
-
+		
+		GraphView view_synth_spectrum;
 		GraphView view_synth_preview;
 		GraphView view_fourier_curve;
 		GraphView view_strong_freq;

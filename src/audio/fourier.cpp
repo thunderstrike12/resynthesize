@@ -199,7 +199,8 @@ namespace resynth {
 	void Fourier::compute_fourier_data(bool use_fft) {
 		constructed = true;
 
-		nyquist = use_wave_data ? (window_size / 2) : (data.sample_rate / 2);
+		//nyquist = use_wave_data ? (window_size / 2) : (data.sample_rate / 2);
+		nyquist = window_size / 2;
 
 		// fourier curve
 		if (use_wave_data) {
@@ -215,6 +216,8 @@ namespace resynth {
 			find_peaks_in_graph(xc, yc, phase, peaks);
 		}
 		else {
+			//nyquist = use_wave_data ? (window_size / 2) : (data.sample_rate / 2);
+			//right now, nyquist will truncate the DFT path, since a bin is always the size of 1 Hz in DFT, it meant the amount of bins is the same as nyquist. in FFT its different. im not applying the one-line fix now, because it will give a double meaning to nyquist.
 			sphere_fourier_at_frequency(yf, xs, ys, test_frequency, window_size);
 			sphere_fourier_at_frequency(yh, xsh, ysh, test_frequency, window_size);
 

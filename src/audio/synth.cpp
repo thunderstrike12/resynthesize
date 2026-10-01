@@ -22,24 +22,26 @@ namespace resynth {
 		PlayAudioStream(stream);
 		running = true;
 
-		for (int i = 0; i < 88; i++)
+		for (int i = 0; i < 88; i++) {
 			keys[i].frequency = base_frequency * powf(key_ratio, (float)i);
+			keys[i].idx = i;
+		}
 	}
 
 	void Synth::Shutdown() {
 		if (!running) return;
 		running = false;
-		g_synth = nullptr;            // before unload, so a late callback is a no-op
+		g_synth = nullptr;
 		StopAudioStream(stream);
 		UnloadAudioStream(stream);
 	}
 
-	float Synth::oscillate(float phase)
+	float Synth::oscillate(float phase, WaveShape shape)
 	{
 		float t = phase / (2.0f * PI);
 		t -= floorf(t);
 		float value = 0.0f;
-		switch (wave_shape)
+		switch (shape)
 		{
 		case resynth::SINE:
 			value = sinf(phase);
@@ -71,7 +73,16 @@ namespace resynth {
 			if (level <= sustain_level) { level = sustain_level; stage = EnvelopeStage::SUSTAIN; }
 			break;
 		case EnvelopeStage::SUSTAIN:
-			level = sustain_level;
+			//sustain levels out smoothly to the sustain level incase the gliding set the level above or below the sustain level
+			if (level < sustain_level) {
+				level += attack_step;
+				if (level > sustain_level) level = sustain_level;
+			}
+			else if (level > sustain_level) {
+				level -= decay_step;
+				if (level < sustain_level) level = sustain_level;
+			}
+			break;
 			break;
 		case EnvelopeStage::RELEASE:
 			level -= release_step;
@@ -85,18 +96,34 @@ namespace resynth {
 
 	float Synth::filter(float in, float lp_coeff, float hp_coeff, Key& key)
 	{
-		key.hp_last = key.hp_last + (in - key.hp_last) * hp_coeff;
-		float hp_out = in - key.hp_last;
+		float sig = in;
+		//beware of high resonance cuasing this clamp to be nessecary
+		//key.out_last = std::clamp(sig, -4.0f, 4.0f);
+		//if (!std::isfinite(key.out_last)) key.out_last = 0.0f;
+		sig -= key.out_last * resonance;
+		for (int i = 0; i < poles; i++)
+		{
+			key.hp_last[i] = key.hp_last[i] + (sig - key.hp_last[i]) * hp_coeff;
+			sig = sig - key.hp_last[i];
 
-		key.lp_last = key.lp_last + (hp_out - key.lp_last) * lp_coeff;
-		return key.lp_last;
+			key.lp_last[i] = key.lp_last[i] + (sig - key.lp_last[i]) * lp_coeff;
+			sig = key.lp_last[i];
+		}
+		key.out_last = sig;
+		return sig;
 	}
 
 	void Synth::Render(float* out, int frames) {
 		for (int i = 0; i < frames; i++) out[i] = 0.0f;
-		for (auto& key : keys) {
+		for (int k = 0; k < 88; k++) {
+			Key& key = keys[k];
 			if (key.stage == IDLE) continue;
-			const float step = 2.0f * PI * key.frequency / (float)sample_rate;
+			if (!slide || k == sounding_key) glide_freq += (glide_target - glide_freq) * slide_speed;
+			float frequency_c = slide ? glide_freq : key.frequency;
+
+			const float step = 2.0f * PI * frequency_c / (float)sample_rate;
+			float ratio = powf(2.0f, cents / 1200.0f);
+			const float step2 = 2.0f * PI * (frequency_c * ratio) / (float)sample_rate;
 			const float amp = amplitude;
 			float dt = 1.0f / sample_rate;
 
@@ -117,6 +144,7 @@ namespace resynth {
 
 				envelope(key.lp_cutoff_stage, key.lp_cutoff_level, lp_attack_step, lp_decay_step, lp_sustain, lp_release_step);
 				envelope(key.hp_cutoff_stage, key.hp_cutoff_level, hp_attack_step, hp_decay_step, hp_sustain, hp_release_step);
+				if (slide && sounding_key != k)continue;//process envelopes of all keys, but only add to out when sliding and key == last key presed
 				float lp_cutoff_curr = std::clamp(lp_cutoff + lp_env_amount * key.lp_cutoff_level, 0.0f, 1.0f);
 				float hp_cutoff_curr = std::clamp(hp_cutoff + hp_env_amount * key.hp_cutoff_level, 0.0f, 1.0f);
 				dbg_lp = lp_cutoff_curr, dbg_hp = hp_cutoff_curr;
@@ -127,28 +155,65 @@ namespace resynth {
 				float hp_coeff = 1.f - expf(-2.0f * PI * hp_cutoff_curr / sample_rate);
 
 
-				float in = oscillate(key.phase);
+				float in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
+
 				float curr = filter(in, lp_coeff, hp_coeff, key);
 				if (invert) curr = in - curr;
 				out[i] += curr * amp * key.level;
+				curr_out[curr_out_idx] += curr * amp * key.level;
 				key.phase += step;
+				key.phase2 += step2;
 				if (key.phase >= 2.0f * PI) key.phase -= 2.0f * PI;
+				if (key.phase2 >= 2.0f * PI) key.phase2 -= 2.0f * PI;
 			}
+		}
+		for (int i = 0; i < frames; i++) {
+			curr_out[curr_out_idx] = out[i];
+			curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
 		}
 	}
 	void Synth::Update() {
+		//remove keys from list if no longer pressed
+		for (int i = 0; i < (int)last_keys_pressed.size(); i++) {
+			if (!keys[last_keys_pressed[i]].is_down) {
+				last_keys_pressed.erase(last_keys_pressed.begin() + i);
+				i--;
+			}
+		}
+
 		//new hit
 		for (auto& key : keys) {
 			if (key.is_down && !key.was_down) {
-				key.stage = ATTACK;
-				key.lp_cutoff_stage = ATTACK;
-				key.hp_cutoff_stage = ATTACK;
-				key.lp_cutoff_level = 0.0f;
-				key.hp_cutoff_level = 0.0f;
+				if (slide) {
+					glide_target = key.frequency;
+					last_keys_pressed.push_back((int)(&key - keys));
+					if (!is_any_key_active((int)(&key - keys)) || sounding_key == -1) {
+						glide_freq = key.frequency;
+						key.stage = ATTACK;
+						key.lp_cutoff_stage = ATTACK;
+						key.hp_cutoff_stage = ATTACK;
+					}
+					else {
+						key.take_state_from(keys[sounding_key]);
+						if (key.stage == RELEASE)key.stage = SUSTAIN;
+					}
+				}
+				else {
+					key.stage = ATTACK;
+					key.lp_cutoff_stage = ATTACK;
+					key.hp_cutoff_stage = ATTACK;
+				}
+				sounding_key = (int)(&key - keys);
 				key.was_down = true;
-
 			}
 			if (!key.is_down && key.was_down) {
+				if (slide && !last_keys_pressed.empty()) {
+					int next = last_keys_pressed.back();
+					if (next != sounding_key) keys[next].take_state_from(keys[sounding_key]);
+					if (keys[next].stage == RELEASE)keys[next].stage = SUSTAIN;
+					sounding_key = next;
+					glide_target = keys[sounding_key].frequency;
+				}
 				key.stage = RELEASE;
 				key.lp_cutoff_stage = RELEASE;
 				key.hp_cutoff_stage = RELEASE;
@@ -157,21 +222,39 @@ namespace resynth {
 		}
 	}
 	void Synth::fill_preview_graph(int resolution, int cycles) {
-		//float coeff = 1.f - expf(-2.0f * PI * cutoff / sample_rate);
 		if (resolution < 2) return;
 		x.resize(resolution); y.resize(resolution);
 		float last = 0.0f;
 		for (int i = 0; i < resolution; i++) {
-			float u = (float)i / (float)(resolution - 1);    // 0..1 across the graph
+			float u = (float)i / (float)(resolution - 1);
 			x[i] = u;
 
-			float in = oscillate(u * (float)cycles * 2.0f * PI);
+			//no filter applied currently, just the raw oscillator output
+			float in = oscillate(u * (float)cycles * 2.0f * PI, wave_shape);
 			float new_last = 0.0f;
-			//float curr = filter(in, last, coeff, new_last);
-			//float curr = last + (in - last) * coeff;
 			last = new_last;
-			y[i] = /*curr*/ in;
+			y[i] = in;
 		}
 	}
-
-}  // namespace resynth
+	void Synth::fill_live_spectrum() {
+		const int idx = curr_out_idx;
+		auto& s = live_spectrum.data.samples;
+		s.clear();
+		s.insert(s.end(), curr_out + idx, curr_out + live_spectrum_window_size);
+		s.insert(s.end(), curr_out, curr_out + idx);
+		live_spectrum.window_size = live_spectrum_window_size;
+		live_spectrum.use_wave_data = false;
+		live_spectrum.data.sample_rate = 48000;
+		live_spectrum.compute_fourier_data();
+	}
+	bool Synth::is_any_key_active(int exclude)
+	{
+		for (int k = 0; k < 88; k++) {
+			Key& key = keys[k];
+			if (key.stage != IDLE && k != exclude) {
+				return true;
+			}
+		}
+		return false;
+	}
+} // resynth

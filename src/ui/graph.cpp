@@ -176,7 +176,6 @@ namespace resynth {
 				}
 			}
 		}
-		EndScissorMode();
 
 		// --- legend (only drawn if at least one series has a name) ---
 		bool any_named = false;
@@ -220,6 +219,7 @@ namespace resynth {
 			DrawRectangle((int)box_pos.x - 4, (int)box_pos.y - 2, (int)text_size.x + 8, lines * 16 + 6, kHoverBoxBg);
 			DrawTextEx(g_app_font, box_text, box_pos, 14, 1.0f, kHoverBoxText);
 		}
+		EndScissorMode();
 	}
 
 

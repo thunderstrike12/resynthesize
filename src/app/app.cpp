@@ -50,7 +50,7 @@ namespace {
 			DrawTextEx(resynth::g_app_font, labels[i], { x + 3, r.y + r.height - 15 }, 11, 1.0f,
 				Color{ 175, 175, 185, 255 });
 		}
-		
+
 		float lx = BandX(r, lp_u), hx = BandX(r, hp_u);
 		if (invert) {
 			if (lx > hx) {
@@ -82,13 +82,8 @@ namespace resynth {
 	}
 
 	void App::DrawSynthSection() {
-		const float py = 60.0f, ph = 220.0f;   // row 1
-		const float py2 = py + ph + 24, ph2 = 190.0f;   // row 2
-
-		const float ex = 20.0f, ew = 420.0f;   // envelope
-		const float fx = 456.0f, fw = 420.0f;   // filter
-		const float ox = 892.0f, ow = 280.0f;   // oscillator
-		const float vx = 1188.0f, vw = 340.0f;   // preview
+		const float py = 60.0f, ph = 250.0f;
+		const float py2 = 326.0f, ph2 = 250.0f;
 
 		auto Panel = [&](float x, float y, float w, float h, const char* title) {
 			DrawRectangleRec(Rectangle{ x, y, w, h }, Color{ 248, 248, 250, 255 });
@@ -96,59 +91,31 @@ namespace resynth {
 			DrawTextEx(g_app_font, title, { x + 16, y + 12 }, 16, 1.0f, DARKGRAY);
 			};
 
-		// four ADSR sliders in a column; returns the y below them
 		auto EnvSliders = [&](float x, float w, float y,
 			float& a, float& d, float& s, float& r) {
-				const float sx = x + 86, sw = w - 106;
+				const float sx = x + 86, sw = w - 150;
 				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "attack",
-					TextFormat("%.0f ms", a * 1000.0f), &a, 0.0f, 1.0f);  y += 30;
+					TextFormat("%.0f ms", a * 1000.0f), &a, 0.0f, 1.0f);  y += 32;
 				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "decay",
-					TextFormat("%.0f ms", d * 1000.0f), &d, 0.0f, 1.0f);  y += 30;
+					TextFormat("%.0f ms", d * 1000.0f), &d, 0.0f, 1.0f);  y += 32;
 				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "sustain",
-					TextFormat("%.2f", s), &s, 0.0f, 1.0f);               y += 30;
+					TextFormat("%.2f", s), &s, 0.0f, 1.0f);               y += 32;
 				GuiSliderBar(Rectangle{ sx, y, sw, 20 }, "release",
-					TextFormat("%.0f ms", r * 1000.0f), &r, 0.0f, 1.0f);  y += 30;
+					TextFormat("%.0f ms", r * 1000.0f), &r, 0.0f, 1.0f);  y += 32;
 				return y;
 			};
 
 		Vector2 mouse = GetMousePosition();
 
-		// ---- amplitude envelope -----------------------------------------
-		Panel(ex, py, ew, ph, "Amp Envelope");
-		EnvSliders(ex, ew, py + 48, synth.attack, synth.decay, synth.sustain, synth.release);
-
-		// ---- filter -----------------------------------------------------
-		Panel(fx, py, fw, ph, "Filter");
-		{
-			DrawFilterBand(Rectangle{ fx + 20, py + 44, fw - 40, 54 },
-				synth.lp_cutoff, synth.hp_cutoff, synth.invert, synth.dbg_lp, synth.dbg_hp);
-
-			float sy = py + 112;
-			GuiSliderBar(Rectangle{ fx + 86, sy, 240, 20 }, "low cut",
-				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.hp_cutoff)),
-				&synth.hp_cutoff, 0.0f, 1.0f);
-			sy += 32;
-			GuiSliderBar(Rectangle{ fx + 86, sy, 240, 20 }, "high cut",
-				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.lp_cutoff)),
-				&synth.lp_cutoff, 0.0f, 1.0f);
-			sy += 32;
-			GuiCheckBox(Rectangle{ fx + 86, sy, 20, 20 }, "invert", &synth.invert);
-		}
-
-		// ---- oscillator -------------------------------------------------
-		Panel(ox, py, ow, ph, "Oscillator");
-		{
-			const WaveShape shapes[4] = { WaveShape::SINE, WaveShape::SAW,
-										  WaveShape::SQUARE, WaveShape::TRIANGLE };
+		// one row of four shape buttons, editing whichever shape is passed in
+		auto ShapeRow = [&](float x, float y, WaveShape& target) {
+			const WaveShape shapes[4] = { SINE, SAW, SQUARE, TRIANGLE };
 			const char* names[4] = { "sine", "saw", "square", "tri" };
-
 			for (int i = 0; i < 4; i++) {
-				Rectangle r = { ox + 24 + (float)(i % 2) * 118,
-								py + 48 + (float)(i / 2) * 74, 110, 62 };
-				bool active = synth.wave_shape == shapes[i];
+				Rectangle r = { x + (float)i * 110, y, 104, 44 };
+				bool active = target == shapes[i];
 				bool hover = CheckCollisionPointRec(mouse, r);
-
-				if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) synth.wave_shape = shapes[i];
+				if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) target = shapes[i];
 
 				DrawRectangleRec(r, active ? Color{ 225, 238, 252, 255 }
 				: (hover ? Color{ 244, 244, 248, 255 } : Color{ 252, 252, 254, 255 }));
@@ -157,12 +124,65 @@ namespace resynth {
 
 				Vector2 ns = MeasureTextEx(g_app_font, names[i], 13, 1.0f);
 				DrawTextEx(g_app_font, names[i],
-					{ r.x + (r.width - ns.x) * 0.5f, r.y + r.height - 20 }, 13, 1.0f,
+					{ r.x + (104 - ns.x) * 0.5f, r.y + 15 }, 13, 1.0f,
 					active ? Color{ 40, 100, 175, 255 } : Color{ 130, 130, 140, 255 });
 			}
+			};
+
+		// ---- oscillators ------------------------------------------------
+		const float osx = 20.0f, osw = 560.0f;
+		Panel(osx, py, osw, ph, "Oscillators");
+		{
+			DrawTextEx(g_app_font, "osc 1", { osx + 20, py + 56 }, 14, 1.0f, DARKGRAY);
+			ShapeRow(osx + 76, py + 44, synth.wave_shape);
+
+			DrawTextEx(g_app_font, "osc 2", { osx + 20, py + 112 }, 14, 1.0f, DARKGRAY);
+			ShapeRow(osx + 76, py + 100, synth.wave_shape2);
+
+			GuiSliderBar(Rectangle{ osx + 86, py + 168, 340, 20 }, "detune",
+				TextFormat("%.1f ct", synth.cents), &synth.cents, 0.0f, 50.0f);
+			GuiSliderBar(Rectangle{ osx + 86, py + 200, 340, 20 }, "mix",
+				TextFormat("%.0f%%", synth.osc_lerp * 100.0f), &synth.osc_lerp, 0.0f, 1.0f);
+
+			GuiCheckBox(Rectangle{ osx + 86, py + 232, 20, 20 }, "slide", &synth.slide);
+
+			GuiSliderBar(Rectangle{ osx + 226, py + 232, 200, 20 }, "slide speed",
+				TextFormat("%.2f%", synth.slide_speed), &synth.slide_speed, 0.0f, 1.0f);
 		}
 
-		// ---- preview ----------------------------------------------------
+		// ---- amp envelope -----------------------------------------------
+		const float ax = 596.0f, aw = 400.0f;
+		Panel(ax, py, aw, ph, "Amp Envelope");
+		EnvSliders(ax, aw, py + 52, synth.attack, synth.decay, synth.sustain, synth.release);
+
+		// ---- filter -----------------------------------------------------
+		const float fx = 1012.0f, fw = 440.0f;
+		Panel(fx, py, fw, ph, "Filter");
+		{
+			DrawFilterBand(Rectangle{ fx + 20, py + 44, fw - 40, 50 },
+				synth.lp_cutoff, synth.hp_cutoff, synth.invert, synth.dbg_lp, synth.dbg_hp);
+
+			float sy = py + 108;
+			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "low cut",
+				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.hp_cutoff)),
+				&synth.hp_cutoff, 0.0f, 1.0f);
+			sy += 30;
+			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "high cut",
+				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.lp_cutoff)),
+				&synth.lp_cutoff, 0.0f, 1.0f);
+			sy += 30;
+			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "resonance",
+				TextFormat("%.2f", synth.resonance), &synth.resonance, 0.0f, 1.5f);
+			sy += 34;
+			GuiCheckBox(Rectangle{ fx + 86, sy, 20, 20 }, "invert", &synth.invert);
+			float poles_f = (float)synth.poles;
+			GuiSliderBar(Rectangle{ fx + 216, sy, 120, 20 }, "poles",
+				TextFormat("%d", synth.poles), &poles_f, 1.0f, 4.0f);
+			synth.poles = std::clamp((int)poles_f, 1, 4);
+		}
+
+		// ---- waveform preview -------------------------------------------
+		const float vx = 1468.0f, vw = 430.0f;
 		Panel(vx, py, vw, ph, "Waveform");
 		{
 			synth.fill_preview_graph(512, 3);
@@ -170,29 +190,81 @@ namespace resynth {
 				{ synth.x.data(), synth.y.data(), (int)synth.x.size(), SKYBLUE, nullptr },
 			};
 			DrawGraph(preview_series, 1,
-				Rectangle{ vx + 76, py + 56, vw - 100, ph - 106 }, view_synth_preview);
+				Rectangle{ vx + 70, py + 56, vw - 100, ph - 110 }, view_synth_preview);
 		}
 
-		// ---- low-cut envelope (drives hp_cutoff) ------------------------
-		Panel(ex, py2, ew, ph2, "Low-cut Envelope");
+		// ---- filter envelopes -------------------------------------------
+		Panel(20.0f, py2, 400.0f, ph2, "Low-cut Envelope");
 		{
-			float y = EnvSliders(ex, ew, py2 + 44,
+			float y = EnvSliders(20.0f, 400.0f, py2 + 52,
 				synth.hp_attack, synth.hp_decay, synth.hp_sustain, synth.hp_release);
-			GuiSliderBar(Rectangle{ ex + 86, y, ew - 106, 20 }, "amount",
+			GuiSliderBar(Rectangle{ 20.0f + 86, y + 8, 250, 20 }, "amount",
 				TextFormat("%+.2f", synth.hp_env_amount), &synth.hp_env_amount, -1.0f, 1.0f);
 		}
 
-		// ---- high-cut envelope (drives lp_cutoff) -----------------------
-		Panel(fx, py2, fw, ph2, "High-cut Envelope");
+		Panel(436.0f, py2, 400.0f, ph2, "High-cut Envelope");
 		{
-			float y = EnvSliders(fx, fw, py2 + 44,
+			float y = EnvSliders(436.0f, 400.0f, py2 + 52,
 				synth.lp_attack, synth.lp_decay, synth.lp_sustain, synth.lp_release);
-			GuiSliderBar(Rectangle{ fx + 86, y, fw - 106, 20 }, "amount",
+			GuiSliderBar(Rectangle{ 436.0f + 86, y + 8, 250, 20 }, "amount",
 				TextFormat("%+.2f", synth.lp_env_amount), &synth.lp_env_amount, -1.0f, 1.0f);
+		}
+
+		// ---- spectrum + filter response ---------------------------------
+		const float spx = 852.0f, spw = 1046.0f;
+		Panel(spx, py2, spw, ph2, "Output Spectrum");
+		{
+			const int points = 200;
+			std::vector<float> fxs(points), fys(points);
+
+			float lp_hz = 20.0f * powf(1000.0f, synth.lp_cutoff);
+			float hp_hz = 20.0f * powf(1000.0f, synth.hp_cutoff);
+			float lp_coeff = 1.0f - expf(-2.0f * PI * lp_hz / synth.sample_rate);
+			float hp_coeff = 1.0f - expf(-2.0f * PI * hp_hz / synth.sample_rate);
+
+			for (int p = 0; p < points; p++) {
+				float u = (float)p / (float)(points - 1);
+				float hz = 20.0f * powf(1000.0f, u);
+
+				Key probe;
+				float step = 2.0f * PI * hz / (float)synth.sample_rate;
+				float phase = 0.0f, peak = 0.0f;
+
+				int cycle = (int)(synth.sample_rate / hz) + 1;
+				int settle = std::max(2000, cycle * 4);
+				int measure = cycle * 2;
+
+				for (int i = 0; i < settle + measure; i++) {
+					float in = sinf(phase);
+					float out = synth.filter(in, lp_coeff, hp_coeff, probe);
+					if (synth.invert) out = in - out;
+					if (i >= settle) peak = std::max(peak, fabsf(out));
+					phase += step;
+					if (phase >= 2.0f * PI) phase -= 2.0f * PI;
+				}
+
+				fxs[p] = log10f(hz);
+				fys[p] = peak * synth.amplitude;
+			}
+
+			synth.fill_live_spectrum();
+			std::vector<float> sxs(synth.live_spectrum.xc.size());
+			for (size_t i = 0; i < sxs.size(); i++)
+				sxs[i] = log10f(std::max(synth.live_spectrum.xc[i], 20.0f));
+
+			GraphSeries spectrum_series[] = {
+				{ sxs.data(), synth.live_spectrum.yc.data(),
+				  (int)sxs.size(), MAROON, "Output" },
+				{ fxs.data(), fys.data(), points, SKYBLUE, "Filter" }
+			};
+			DrawGraph(spectrum_series, 2,
+				Rectangle{ spx + 70, py2 + 56, spw - 100, ph2 - 110 },
+				view_synth_spectrum, "log10 Hz");
 		}
 
 		// ---- keyboard ---------------------------------------------------
 		const float kpy = py2 + ph2 + 28;
+		const float ex = 20.0f;
 		DrawTextEx(g_app_font, "Keyboard", { ex, kpy }, 16, 1.0f, DARKGRAY);
 
 		{
