@@ -1,0 +1,21 @@
+# ninja log v6
+3	59	8129873351604735	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-mkdir	12908034c8d90ef1
+3	59	8129873351604735	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-mkdir	12908034c8d90ef1
+60	3149	8129873382488195	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-download	94026033bea1e567
+60	3149	8129873382488195	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-download	94026033bea1e567
+3151	3273	8129873382544954	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-update	8835a475fabf3f0d
+3151	3273	8129873382544954	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-update	8835a475fabf3f0d
+3273	3326	8129873384247459	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-patch	5eb18481a3273ce4
+3273	3326	8129873384247459	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-patch	5eb18481a3273ce4
+3326	3378	8129873384744710	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-configure	c3f616d8f5aea3f
+3326	3378	8129873384744710	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-configure	c3f616d8f5aea3f
+3378	3431	8129873385242725	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-build	95b48653980c87c3
+3378	3431	8129873385242725	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-build	95b48653980c87c3
+3431	3484	8129873385845091	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-install	a02d6cf99530e6d0
+3431	3484	8129873385845091	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-install	a02d6cf99530e6d0
+3485	3536	8129873386343694	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-test	54f2d5a2cf007227
+3485	3536	8129873386343694	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-test	54f2d5a2cf007227
+3536	3608	8129873387045784	CMakeFiles/raygui-populate-complete	e540050eb7ba4230
+3536	3608	8129873387045784	raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-done	e540050eb7ba4230
+3536	3608	8129873387045784	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/CMakeFiles/raygui-populate-complete	e540050eb7ba4230
+3536	3608	8129873387045784	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raygui-subbuild/raygui-populate-prefix/src/raygui-populate-stamp/raygui-populate-done	e540050eb7ba4230

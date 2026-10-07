@@ -4,7 +4,12 @@
 #include <cmath>
 #include <cassert>
 
+
+
 namespace {
+	constexpr double kPI = 3.14159265358979323846;
+	constexpr double kTWOPI = 2.0 * kPI;
+
 	void normalize_buffer(std::vector<float>& buffer) {
 		float max_abs = 0.0f;
 		for (float s : buffer) max_abs = std::max(max_abs, std::fabs(s));
@@ -38,9 +43,13 @@ namespace {
 
 		// combine
 		for (int k = 0; k < half; k++) {
-			float angle = -2.0f * PI * (float)k / (float)n;
-			float twiddle_real = cosf(angle);
-			float twiddle_imag = sinf(angle);
+			//float angle = -2.0f * PI * (float)k / (float)n;
+			//float twiddle_real = cosf(angle);
+			//float twiddle_imag = sinf(angle);
+
+			double angle = -kTWOPI * (double)k / (double)n;
+			float twiddle_real = (float)cos(angle);
+			float twiddle_imag = (float)sin(angle);
 
 			float t_real = twiddle_real * odd_real[k] - twiddle_imag * odd_imag[k];
 			float t_imag = twiddle_real * odd_imag[k] + twiddle_imag * odd_real[k];
@@ -363,6 +372,94 @@ namespace resynth {
 			prof.mag[f] = bin_mags[idx];
 		}
 		return prof;
+	}
+
+	std::vector<float> Fourier::stretch(const std::vector<float>& src, float factor, int n) const {
+		if (src.empty() || factor <= 0.0f || n <= 1 || (n & (n - 1)) != 0) return {};
+		if ((int)src.size() < n) return {};
+
+		const int nq = n / 2;
+		const int hop_a = n / 16;
+		const int hop_s = std::max(1, (int)lroundf(hop_a * factor));
+		const double ratio = (double)hop_s / (double)hop_a;
+		const int frames = ((int)src.size() - n) / hop_a + 1;
+
+		auto wrap = [&](double x) { return x - kTWOPI * std::floor((x + kTWOPI / 2.0) / kTWOPI); };
+
+		std::vector<float> win(n);
+		for (int i = 0; i < n; i++) win[i] = 0.5f * (1.0f - cosf(2.0f * PI * (float)i / (float)n));
+
+		std::vector<float> out((size_t)hop_s * (frames - 1) + n, 0.0f);
+		std::vector<float> norm(out.size(), 0.0f);
+
+		std::vector<float> re(n), im(n), mag(nq);
+		std::vector<double> ph(nq), prev_ph(nq, 0.0), out_ph(nq, 0.0);
+		std::vector<int> peaks;
+
+		for (int f = 0; f < frames; f++) {
+			const int base = f * hop_a;
+			for (int i = 0; i < n; i++) { re[i] = src[base + i] * win[i]; im[i] = 0.0f; }
+			FFT(re, im);
+
+			for (int k = 0; k < nq; k++) {
+				mag[k] = sqrtf(re[k] * re[k] + im[k] * im[k]);
+				ph[k] = atan2((double)im[k], (double)re[k]);
+			}
+
+			if (f == 0) {
+				out_ph = ph;
+			}
+			else {
+				// per-bin true-frequency propagation
+				for (int k = 0; k < nq; k++) {
+					double expected = kTWOPI * k * hop_a / n;
+					double dev = wrap(ph[k] - prev_ph[k] - expected);
+					out_ph[k] = wrap(out_ph[k] + (expected + dev) * ratio);
+				}
+
+				// identity phase locking: bins around a peak follow the peak
+				peaks.clear();
+				for (int k = 2; k < nq - 2; k++)
+					if (mag[k] > mag[k - 1] && mag[k] > mag[k - 2] &&
+						mag[k] >= mag[k + 1] && mag[k] >= mag[k + 2])
+						peaks.push_back(k);
+
+				for (size_t pi = 0; pi < peaks.size(); pi++) {
+					int p = peaks[pi];
+					int lo = pi == 0 ? 0 : (peaks[pi - 1] + p) / 2 + 1;
+					int hi = pi + 1 == peaks.size() ? nq - 1 : (p + peaks[pi + 1]) / 2;
+					for (int k = lo; k <= hi; k++)
+						if (k != p) out_ph[k] = wrap(out_ph[p] + (ph[k] - ph[p]));
+				}
+			}
+			prev_ph = ph;
+
+			// rebuild spectrum with conjugate symmetry
+			for (int k = 1; k < nq; k++) {
+				re[k] = mag[k] * (float)cos(out_ph[k]);
+				im[k] = mag[k] * (float)sin(out_ph[k]);
+				re[n - k] = re[k];
+				im[n - k] = -im[k];
+			}
+			im[0] = 0.0f;       // DC and Nyquist stay real (re[0], re[nq] untouched)
+			im[nq] = 0.0f;
+
+			IFFT(re, im);
+
+			// synthesis window + accumulate window^2 for normalisation
+			const int ob = f * hop_s;
+			for (int i = 0; i < n; i++) {
+				out[ob + i] += re[i] * win[i];
+				norm[ob + i] += win[i] * win[i];
+			}
+		}
+
+		for (size_t i = 0; i < out.size(); i++)
+		{
+			if (norm[i] > 1e-3f) out[i] /= norm[i];
+			out[i] *= 1.0f / factor;
+		}
+		return out;
 	}
 
 	std::vector<float> Fourier::build_buffer_from_audio_data() const {

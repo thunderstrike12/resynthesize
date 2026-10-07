@@ -26,16 +26,22 @@ namespace resynth {
 	class Key {
 	public:
 		int idx = -1;
+		float frequency = 440.0f;
 
 		EnvelopeStage stage = IDLE;
 		float level = 0.0f;
 		bool was_down = false;
 		bool is_down = false;
 
+		// sample state
+		AudioData sample;
+		double sample_pos = 0.0;
+
+		// oscillator state
 		float phase = 0.0f;
 		float phase2 = 0.0f;
-		float frequency = 440.0f;
 
+		// filter state
 		float out_last = 0.0f;
 		float lp_last[4] = {};
 		float hp_last[4] = {};
@@ -104,6 +110,19 @@ namespace resynth {
 
 		Key keys[key_amount];
 
+		// sample parameters
+		void load_sample_into_keys();
+		AudioData sample; 
+		int root_key = 27; 
+		bool sample_loop = false;
+		float sample_loop_fade = false;
+		float sample_loop_fade_length = 1.0f;
+		float sample_length = 1.0f;
+		float sample_mix = 0.0f;
+		float sample_start = 0.0f;
+		float loop_start = 0.0f;
+
+		// slide parameters
 		int sounding_key = -1;
 		bool  slide = false;
 		float slide_speed = 0.01f;
@@ -112,6 +131,7 @@ namespace resynth {
 		float glide_phase = 0.0f;
 		std::vector<int> last_keys_pressed;
 
+		// filter parameters
 		int poles = 4;
 		float resonance = 1.0f;
 		float cents = 10.0f;

@@ -54,6 +54,7 @@ namespace resynth {
 		float percentile = 0.0f;
 
 		Synth synth;
+		char sample_path[256] = "";
 		int key_view_start = 27;
 		int key_view_count = 29;
 		void DrawSynthSection();

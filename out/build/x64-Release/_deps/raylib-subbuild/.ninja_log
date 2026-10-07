@@ -1,0 +1,21 @@
+# ninja log v6
+4	63	8129873031955224	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-mkdir	f98d8f1d906c55e6
+4	63	8129873031955224	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-mkdir	f98d8f1d906c55e6
+64	30234	8129873333725242	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-download	a23b6c0031eb5c8
+64	30234	8129873333725242	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-download	a23b6c0031eb5c8
+30236	30372	8129873333745312	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-update	dd3874302ada3802
+30236	30372	8129873333745312	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-update	dd3874302ada3802
+30372	30424	8129873335544418	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-patch	deae59a0f9acaa72
+30372	30424	8129873335544418	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-patch	deae59a0f9acaa72
+30424	30477	8129873336146192	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-configure	1c4b7343d40ce31a
+30424	30477	8129873336146192	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-configure	1c4b7343d40ce31a
+30477	30527	8129873336648317	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-build	b888ec39faca9958
+30477	30527	8129873336648317	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-build	b888ec39faca9958
+30527	30579	8129873337145751	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-install	54f382bab2a0ea3a
+30527	30579	8129873337145751	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-install	54f382bab2a0ea3a
+30579	30632	8129873337714317	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-test	81c881d33e5d373e
+30579	30632	8129873337714317	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-test	81c881d33e5d373e
+30632	30707	8129873338443125	CMakeFiles/raylib-populate-complete	28dc51298a2f6cec
+30632	30707	8129873338443125	raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-done	28dc51298a2f6cec
+30632	30707	8129873338443125	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/CMakeFiles/raylib-populate-complete	28dc51298a2f6cec
+30632	30707	8129873338443125	C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/_deps/raylib-subbuild/raylib-populate-prefix/src/raylib-populate-stamp/raylib-populate-done	28dc51298a2f6cec

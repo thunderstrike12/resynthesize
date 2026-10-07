@@ -119,9 +119,10 @@ namespace resynth {
 			Key& key = keys[k];
 			if (key.stage == IDLE) continue;
 			if (!slide || k == sounding_key) glide_freq += (glide_target - glide_freq) * slide_speed;
-			float frequency_c = slide ? glide_freq : key.frequency;
+			double frequency_c = slide ? glide_freq : key.frequency;
 
-			const float step = 2.0f * PI * frequency_c / (float)sample_rate;
+			const double sample_step = key.frequency / keys[root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
+			const double step = 2.0f * PI * frequency_c / (double)sample_rate;
 			float ratio = powf(2.0f, cents / 1200.0f);
 			const float step2 = 2.0f * PI * (frequency_c * ratio) / (float)sample_rate;
 			const float amp = amplitude;
@@ -154,8 +155,58 @@ namespace resynth {
 				float lp_coeff = 1.f - expf(-2.0f * PI * lp_cutoff_curr / sample_rate);
 				float hp_coeff = 1.f - expf(-2.0f * PI * hp_cutoff_curr / sample_rate);
 
-
 				float in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
+
+				float sample_in = 0.0f;
+				const int n = (int)key.sample.samples.size();
+				const double end = std::clamp((double)sample_length, 0.01, 1.0) * n;
+
+				if (n > 2) {
+					const float* s = key.sample.samples.data();
+
+					// read with interpolation, bounds-safe
+					auto read = [&](double p) -> float {
+						if (p < 0.0 || p + 1.0 >= (double)n) return 0.0f;
+						int i = (int)p;
+						float f = (float)(p - (double)i);
+						return s[i] * (1.0f - f) + s[i + 1] * f;      // note: (1-f) first
+					};
+
+					const double loop_begin = (double)loop_start * n;
+					const double fade_len = (double)sample_loop_fade_length * n;
+					const double fade_begin = (double)end - fade_len;
+
+					sample_in = read(key.sample_pos);
+
+					float early = 0.0f;
+					if (sample_loop && fade_len >= 1.0 && key.sample_pos >= fade_begin) {
+						float mix = (float)((key.sample_pos - fade_begin) / fade_len);
+						mix = std::clamp(mix, 0.0f, 1.0f);
+						early = read(loop_begin + (key.sample_pos - fade_begin));
+						float a = cosf(mix * PI * 0.5f);
+						float b = sinf(mix * PI * 0.5f);
+						a = 1.0f - mix;
+						b = mix;
+
+						sample_in = sample_in * a + early * b;
+					}
+
+					key.sample_pos += sample_step;
+
+					if (key.sample_pos + 1.0 >= end) {
+						if (sample_loop) {
+							if (fade_len >= 1.0)
+								key.sample_pos = loop_begin + (key.sample_pos - fade_begin);
+							else
+								key.sample_pos = loop_begin + (key.sample_pos - end);
+						}
+						else {
+							key.sample_pos = end;
+						}
+					}
+				}
+
+				in = in * (1.0f - sample_mix) + sample_in * sample_mix;
 
 				float curr = filter(in, lp_coeff, hp_coeff, key);
 				if (invert) curr = in - curr;
@@ -192,6 +243,7 @@ namespace resynth {
 						key.stage = ATTACK;
 						key.lp_cutoff_stage = ATTACK;
 						key.hp_cutoff_stage = ATTACK;
+						key.sample_pos = sample_start * (float)sample.samples.size();
 					}
 					else {
 						key.take_state_from(keys[sounding_key]);
@@ -202,6 +254,7 @@ namespace resynth {
 					key.stage = ATTACK;
 					key.lp_cutoff_stage = ATTACK;
 					key.hp_cutoff_stage = ATTACK;
+					key.sample_pos = sample_start * (float)sample.samples.size();
 				}
 				sounding_key = (int)(&key - keys);
 				key.was_down = true;
@@ -256,5 +309,13 @@ namespace resynth {
 			}
 		}
 		return false;
+	}
+	void Synth::load_sample_into_keys()
+	{
+		for (int k = 0; k < 88; k++) {
+			Key& key = keys[k];
+			float factor = key.frequency / keys[root_key].frequency;
+			key.sample.samples = live_spectrum.stretch(sample.samples, factor, 8192.0f);
+		}
 	}
 } // resynth

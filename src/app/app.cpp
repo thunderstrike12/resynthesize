@@ -84,6 +84,7 @@ namespace resynth {
 	void App::DrawSynthSection() {
 		const float py = 60.0f, ph = 250.0f;
 		const float py2 = 326.0f, ph2 = 250.0f;
+		const float py3 = 592.0f, ph3 = 250.0f;
 
 		auto Panel = [&](float x, float y, float w, float h, const char* title) {
 			DrawRectangleRec(Rectangle{ x, y, w, h }, Color{ 248, 248, 250, 255 });
@@ -262,8 +263,81 @@ namespace resynth {
 				view_synth_spectrum, "log10 Hz");
 		}
 
+		// ---- sampler ----------------------------------------------------
+		const float smx = 20.0f, smw = 560.0f;
+		Panel(smx, py3, smw, ph3, "Sampler");
+		{
+			if (GuiButton(Rectangle{ smx + 20, py3 + 44, 120, 28 }, "Load Sample...")) {
+				const char* filter_patterns[2] = { "*.wav", "*.mp3" };
+				const char* selected = tinyfd_openFileDialog(
+					"Select Sample", "", 2, filter_patterns, "Audio files", 0);
+				if (selected != nullptr) {
+					strncpy(sample_path, selected, sizeof(sample_path) - 1);
+					sample_path[sizeof(sample_path) - 1] = '\0';
+					synth.sample.load(sample_path);
+				}
+			}
+			if (GuiButton(Rectangle{ smx + 360, py3 + 44, 120, 28 }, "Load into keys")) {
+				synth.load_sample_into_keys();
+			}
+
+			// filename only, not the whole path
+			const char* shown = "no sample loaded";
+			if (synth.sample.samples.size() > 0) {
+				shown = sample_path;
+				for (const char* p = sample_path; *p; p++)
+					if (*p == '\\' || *p == '/') shown = p + 1;
+			}
+			DrawTextEx(g_app_font, shown, { smx + 152, py3 + 51 }, 14, 1.0f,
+				synth.sample.samples.empty() ? Color{ 170,170,180,255 } : DARKGRAY);
+
+			if (!synth.sample.samples.empty()) {
+				float secs = (float)synth.sample.samples.size()
+					/ (float)std::max(synth.sample.sample_rate, 1);
+				DrawTextEx(g_app_font,
+					TextFormat("%d samples   %.2f s   %d Hz",
+						(int)synth.sample.samples.size(), secs, synth.sample.sample_rate),
+					{ smx + 152, py3 + 72 }, 13, 1.0f, Color{ 150, 150, 160, 255 });
+			}
+
+			float sy = py3 + 106;
+
+			float root_f = (float)synth.root_key;
+			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "root",
+				TextFormat("%s%d", kNoteNames[synth.root_key % 12], OctaveOf(synth.root_key)),
+				&root_f, 0.0f, 87.0f);
+			synth.root_key = std::clamp((int)root_f, 0, 87);
+			DrawTextEx(g_app_font,
+				TextFormat("%.1f Hz", synth.keys[synth.root_key].frequency),
+				{ smx + 396, sy + 3 }, 13, 1.0f, Color{ 150, 150, 160, 255 });
+			sy += 32;
+
+			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "mix",
+				TextFormat("%.0f%% sample", synth.sample_mix * 100.0f),
+				&synth.sample_mix, 0.0f, 1.0f);
+			sy += 32;
+
+			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "start",
+				TextFormat("%.0f%%", synth.sample_start * 100.0f),
+				&synth.sample_start, 0.0f, 0.99f);
+			sy += 32;
+
+			GuiCheckBox(Rectangle{ smx + 86, sy, 20, 20 }, "loop", &synth.sample_loop);
+			if (synth.sample_loop) {
+				GuiSliderBar(Rectangle{ smx + 206, sy, 180, 20 }, "loop from",
+					TextFormat("%.0f%%", synth.loop_start * 100.0f),
+					&synth.loop_start, 0.0f, 0.99f);
+				GuiSliderBar(Rectangle{ smx + 206, sy + 30, 180, 20 }, "loop fade length",
+					TextFormat("%.0f%%", synth.sample_loop_fade_length * 100.0f),
+					& synth.sample_loop_fade_length, 0.0f, 0.99f);
+				GuiSliderBar(Rectangle{ smx + 206, sy + 60, 180, 20 }, "sample length",
+					TextFormat("%.0f%%", synth.sample_length * 100.0f),
+					& synth.sample_length, 0.0f, 0.99f);
+			}
+		}
+
 		// ---- keyboard ---------------------------------------------------
-		const float kpy = py2 + ph2 + 28;
+		const float kpy = py2 + ph2 + 328;
 		const float ex = 20.0f;
 		DrawTextEx(g_app_font, "Keyboard", { ex, kpy }, 16, 1.0f, DARKGRAY);
 

@@ -98,6 +98,8 @@ namespace resynth {
 		SpectralProfile capture_profile_from_audio_data(const AudioData& src, const char* name, float percentile = 0.25f) const;
 		SpectralProfile capture_profile_from_spectrogram(const std::vector<Chunk>& c, const char* name, float percentile) const;
 
+		std::vector<float> stretch(const std::vector<float>& src, float factor, int n) const;
+
 		std::vector<float> build_buffer_from_audio_data() const;
 		std::vector<float> build_buffer_from_fourier_curve(int repeat_count = 200) const;
 		std::vector<float> build_buffer_from_waves() const;
