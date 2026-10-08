@@ -55,6 +55,7 @@ namespace resynth {
 		void take_state_from(const Key& o) {
 			stage = o.stage;
 			level = o.level;
+			sample_pos = o.sample_pos;
 
 			phase = o.phase;
 			phase2 = o.phase2;
@@ -124,6 +125,7 @@ namespace resynth {
 
 		// slide parameters
 		int sounding_key = -1;
+		int slide_start_key = -1;
 		bool  slide = false;
 		float slide_speed = 0.01f;
 		float glide_freq = 440.0f;

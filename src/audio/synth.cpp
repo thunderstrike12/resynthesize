@@ -17,7 +17,7 @@ namespace resynth {
 		sample_rate = rate;
 
 		g_synth = this;
-		stream = LoadAudioStream(sample_rate, 32, 1);   // 32-bit float, mono
+		stream = LoadAudioStream(sample_rate, 32, 1);
 		SetAudioStreamCallback(stream, StreamCallback);
 		PlayAudioStream(stream);
 		running = true;
@@ -121,7 +121,8 @@ namespace resynth {
 			if (!slide || k == sounding_key) glide_freq += (glide_target - glide_freq) * slide_speed;
 			double frequency_c = slide ? glide_freq : key.frequency;
 
-			const double sample_step = key.frequency / keys[root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
+			double sample_step = key.frequency / keys[root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
+			if(slide) sample_step = glide_freq / keys[root_key].frequency * ((float)sample.sample_rate / (float)sample_rate);
 			const double step = 2.0f * PI * frequency_c / (double)sample_rate;
 			float ratio = powf(2.0f, cents / 1200.0f);
 			const float step2 = 2.0f * PI * (frequency_c * ratio) / (float)sample_rate;
@@ -141,6 +142,7 @@ namespace resynth {
 			float hp_release_step = hp_release > 0.0f ? dt / hp_release : 1.0f;
 
 			for (int i = 0; i < frames; i++) {
+				//envelopes
 				envelope(key.stage, key.level, attack_step, decay_step, sustain, release_step);
 
 				envelope(key.lp_cutoff_stage, key.lp_cutoff_level, lp_attack_step, lp_decay_step, lp_sustain, lp_release_step);
@@ -155,21 +157,22 @@ namespace resynth {
 				float lp_coeff = 1.f - expf(-2.0f * PI * lp_cutoff_curr / sample_rate);
 				float hp_coeff = 1.f - expf(-2.0f * PI * hp_cutoff_curr / sample_rate);
 
+				//oscillate
 				float in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
 
+				//sample playback
 				float sample_in = 0.0f;
-				const int n = (int)key.sample.samples.size();
+				const AudioData& src = (slide && slide_start_key >= 0) ? keys[slide_start_key].sample : key.sample;
+				const int n = (int)src.samples.size();
 				const double end = std::clamp((double)sample_length, 0.01, 1.0) * n;
 
 				if (n > 2) {
-					const float* s = key.sample.samples.data();
-
-					// read with interpolation, bounds-safe
+					const float* s = src.samples.data();
 					auto read = [&](double p) -> float {
 						if (p < 0.0 || p + 1.0 >= (double)n) return 0.0f;
 						int i = (int)p;
 						float f = (float)(p - (double)i);
-						return s[i] * (1.0f - f) + s[i + 1] * f;      // note: (1-f) first
+						return s[i] * (1.0f - f) + s[i + 1] * f;
 					};
 
 					const double loop_begin = (double)loop_start * n;
@@ -206,8 +209,10 @@ namespace resynth {
 					}
 				}
 
+				//mix the sample and oscillator together
 				in = in * (1.0f - sample_mix) + sample_in * sample_mix;
 
+				//apply filter
 				float curr = filter(in, lp_coeff, hp_coeff, key);
 				if (invert) curr = in - curr;
 				out[i] += curr * amp * key.level;
@@ -234,11 +239,13 @@ namespace resynth {
 
 		//new hit
 		for (auto& key : keys) {
+			int key_idx = (int)(&key - keys);
 			if (key.is_down && !key.was_down) {
 				if (slide) {
 					glide_target = key.frequency;
-					last_keys_pressed.push_back((int)(&key - keys));
-					if (!is_any_key_active((int)(&key - keys)) || sounding_key == -1) {
+					last_keys_pressed.push_back(key_idx);
+					if (!is_any_key_active(key_idx) || sounding_key == -1) {
+						slide_start_key = key_idx;
 						glide_freq = key.frequency;
 						key.stage = ATTACK;
 						key.lp_cutoff_stage = ATTACK;
