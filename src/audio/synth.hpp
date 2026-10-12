@@ -7,6 +7,8 @@
 const float key_ratio = 1.05946309436;
 const int key_amount = 88;
 const int live_spectrum_window_size = 4096;
+const int grain_amount = 20;
+const int delay_buffer_size = 96000;
 
 namespace resynth {
 	enum EnvelopeStage {
@@ -23,6 +25,13 @@ namespace resynth {
 		SQUARE,
 		TRIANGLE
 	};
+	struct Grain {
+		double pos;        // read position in the sample
+		int    age;        // samples since birth
+		int    life;       // samples it lives for
+		bool   active;
+	};
+
 	class Key {
 	public:
 		int idx = -1;
@@ -32,6 +41,10 @@ namespace resynth {
 		float level = 0.0f;
 		bool was_down = false;
 		bool is_down = false;
+
+		// granular synthesis state
+		Grain grains[grain_amount];
+		double grain_spawn_accumulator = 0.0;
 
 		// sample state
 		AudioData sample;
@@ -91,6 +104,11 @@ namespace resynth {
 		bool is_any_key_active(int exclude);
 
 
+		int sample_rate = 48000;
+		bool running = false;
+
+		Key keys[key_amount];
+
 		float dbg_lp = 0.0f, dbg_hp = 0.0f;
 		float curr_out[live_spectrum_window_size];
 		int curr_out_idx = 0;
@@ -99,29 +117,48 @@ namespace resynth {
 		// UI-thread parameters. Read by the audio thread every block.
 		float base_frequency = 27.5;
 		float amplitude = 0.1f;   // start silent
-		float lp_cutoff = 0.0f;
+		float lp_cutoff = 48000.0f;
 		float hp_cutoff = 0.0f;
 		bool invert = false;
 		float osc_lerp = 0.0f;
+		float osc_amp = 1.0f;
 		WaveShape wave_shape = SINE;
 		WaveShape wave_shape2 = SAW;
 
-		int sample_rate = 48000;
-		bool running = false;
+		// effect parameters
+		float delay_time = 0.5f;						// delay time in ms
+		float delay_feedback = 0.5f;					// feedback in % - (0.0 to 1.0)
+		float delay_buffer[delay_buffer_size];
+		int delay_buffer_pos = 0.0f;
+		float delay_amp = 0.5f;							// delay amplitude in % - (0.0 to 1.0)	
 
-		Key keys[key_amount];
+		bool drive_enabled = false;							// enable drive
+		float drive = 0.0f;								// drive in % - (0.0 to 1.0)
+		bool drive_before_filter = true;				// drive before filter or after filter
+
+		// grain parameters
+		float grain_mix = 1.0f;							// mix between sample and grainsin % - (0.0 to 1.0)
+		float grain_spawn_rate_per_second = 10.0f;		// grains per second
+		float grain_spawn_pos = 1.0f;					// position in sample in %  - (0.0 to 1.0)
+		float grain_spawn_pos_spray = 0.0f;				// position spray in sample in ms
+		float grain_life = 0.1f;						// life in ms
+		float grain_life_spray = 0.0f;					// life spray in ms
+		float grain_shape = 0.5f;						// shape of the grain envelope (0.0 to 1.0)
+		float grain_tilt = 0.0f;						// tilt of the grain envelope (0.0 to 1.0)
+		float grain_amp = 0.0f;
 
 		// sample parameters
 		void load_sample_into_keys();
 		AudioData sample; 
-		int root_key = 27; 
+		int sample_root_key = 27; 
 		bool sample_loop = false;
 		float sample_loop_fade = false;
 		float sample_loop_fade_length = 1.0f;
 		float sample_length = 1.0f;
 		float sample_mix = 0.0f;
 		float sample_start = 0.0f;
-		float loop_start = 0.0f;
+		float sample_loop_start = 0.0f;
+		float sample_amp = 1.0f;
 
 		// slide parameters
 		int sounding_key = -1;
@@ -138,10 +175,10 @@ namespace resynth {
 		float resonance = 1.0f;
 		float cents = 10.0f;
 
-		float attack = 0.0f;
-		float decay = 0.0f;
-		float sustain = 0.0f;
-		float release = 0.0f;
+		float attack = 0.01f;
+		float decay = 1.0f;
+		float sustain = 1.0f;
+		float release = 0.1f;
 
 		float lp_attack = 0.0f;
 		float lp_decay = 0.0f;

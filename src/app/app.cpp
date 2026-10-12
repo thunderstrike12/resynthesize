@@ -73,12 +73,59 @@ namespace {
 
 		DrawRectangleLinesEx(r, 1, Color{ 200, 200, 208, 255 });
 	}
+	// matches Render exactly: shape = fraction at full level, tilt = split of the rest
+	inline float GrainEnvAt(float u, float shape, float tilt) {
+		float max_dur = shape;
+		float fade_in = (1.0f - max_dur) * tilt;
+		float fade_out = 1.0f - max_dur - fade_in;
+
+		if (fade_in > 0.0f && u < fade_in)              return u / fade_in;
+		if (fade_out > 0.0f && u > fade_in + max_dur)   return 1.0f - (u - fade_in - max_dur) / fade_out;
+		return 1.0f;
+	}
+
+	void DrawGrainEnv(Rectangle r, float shape, float tilt, float rate, float life) {
+		DrawRectangleRec(r, Color{ 252, 252, 254, 255 });
+
+		BeginScissorMode((int)r.x, (int)r.y, (int)r.width, (int)r.height);
+
+		const float span = 0.6f;                        // seconds across the strip
+		const float px_per_s = r.width / span;
+		const float life_w = life * px_per_s;             // one grain's width
+		const float step_w = (rate > 0.0f) ? px_per_s / rate : r.width;   // spacing
+
+		const int count = (int)ceilf((r.width + life_w) / std::max(step_w, 1.0f));
+
+		for (int g = 0; g < count; g++) {
+			float x0 = r.x + g * step_w;
+			if (x0 > r.x + r.width) break;
+
+			Vector2 prev{};
+			for (int i = 0; i <= 32; i++) {
+				float u = (float)i / 32.0f;
+				float gain = GrainEnvAt(u, shape, tilt);
+				Vector2 p = { x0 + u * life_w,
+							  r.y + r.height - gain * (r.height - 8) - 4 };
+				if (i > 0) DrawLineEx(prev, p, 1.5f, Color{ 90, 190, 150, 255 });
+				prev = p;
+			}
+		}
+
+		EndScissorMode();
+		DrawRectangleLinesEx(r, 1, Color{ 200, 200, 208, 255 });
+	}
 }
 
 namespace resynth {
 	void App::DrawViewTabs() {
 		if (GuiButton(Rectangle{ 20, 5, 120, 30 }, "Analysis")) view = View::Analysis;
 		if (GuiButton(Rectangle{ 150, 5, 120, 30 }, "Synth"))    view = View::Synth;
+		// slider for master volume if synth is active
+		if(view == View::Synth) {
+			GuiSliderBar(Rectangle{ 380, 5, 200, 30 }, "master volume",
+				TextFormat("%.0f%%", synth.amplitude * 100.0f),
+				&synth.amplitude, 0.0f, 2.0f);
+		}
 	}
 
 	void App::DrawSynthSection() {
@@ -144,10 +191,12 @@ namespace resynth {
 				TextFormat("%.1f ct", synth.cents), &synth.cents, 0.0f, 50.0f);
 			GuiSliderBar(Rectangle{ osx + 86, py + 200, 340, 20 }, "mix",
 				TextFormat("%.0f%%", synth.osc_lerp * 100.0f), &synth.osc_lerp, 0.0f, 1.0f);
+			GuiSliderBar(Rectangle{ osx + 86, py + 232, 340, 20 }, "amp",
+				TextFormat("%.0f%%", synth.osc_amp * 100.0f), &synth.osc_amp, 0.0f, 2.0f);
 
-			GuiCheckBox(Rectangle{ osx + 86, py + 232, 20, 20 }, "slide", &synth.slide);
+			GuiCheckBox(Rectangle{ osx + 86, py + 264, 20, 20 }, "slide", &synth.slide);
 
-			GuiSliderBar(Rectangle{ osx + 226, py + 232, 200, 20 }, "slide speed",
+			GuiSliderBar(Rectangle{ osx + 226, py + 264, 200, 20 }, "slide speed",
 				TextFormat("%.2f%", synth.slide_speed), &synth.slide_speed, 0.0f, 1.0f);
 		}
 
@@ -302,19 +351,22 @@ namespace resynth {
 
 			float sy = py3 + 106;
 
-			float root_f = (float)synth.root_key;
+			float root_f = (float)synth.sample_root_key;
 			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "root",
-				TextFormat("%s%d", kNoteNames[synth.root_key % 12], OctaveOf(synth.root_key)),
+				TextFormat("%s%d", kNoteNames[synth.sample_root_key % 12], OctaveOf(synth.sample_root_key)),
 				&root_f, 0.0f, 87.0f);
-			synth.root_key = std::clamp((int)root_f, 0, 87);
+			synth.sample_root_key = std::clamp((int)root_f, 0, 87);
 			DrawTextEx(g_app_font,
-				TextFormat("%.1f Hz", synth.keys[synth.root_key].frequency),
+				TextFormat("%.1f Hz", synth.keys[synth.sample_root_key].frequency),
 				{ smx + 396, sy + 3 }, 13, 1.0f, Color{ 150, 150, 160, 255 });
 			sy += 32;
 
-			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "mix",
-				TextFormat("%.0f%% sample", synth.sample_mix * 100.0f),
-				&synth.sample_mix, 0.0f, 1.0f);
+			//GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "mix",
+			//	TextFormat("%.0f%% sample", synth.sample_mix * 100.0f),
+			//	&synth.sample_mix, 0.0f, 1.0f);
+			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "amp",
+				TextFormat("%.0f%% sample", synth.sample_amp * 100.0f),
+				& synth.sample_amp, 0.0f, 2.0f);
 			sy += 32;
 
 			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "start",
@@ -325,8 +377,8 @@ namespace resynth {
 			GuiCheckBox(Rectangle{ smx + 86, sy, 20, 20 }, "loop", &synth.sample_loop);
 			if (synth.sample_loop) {
 				GuiSliderBar(Rectangle{ smx + 206, sy, 180, 20 }, "loop from",
-					TextFormat("%.0f%%", synth.loop_start * 100.0f),
-					&synth.loop_start, 0.0f, 0.99f);
+					TextFormat("%.0f%%", synth.sample_loop_start * 100.0f),
+					&synth.sample_loop_start, 0.0f, 0.99f);
 				GuiSliderBar(Rectangle{ smx + 206, sy + 30, 180, 20 }, "loop fade length",
 					TextFormat("%.0f%%", synth.sample_loop_fade_length * 100.0f),
 					& synth.sample_loop_fade_length, 0.0f, 0.99f);
@@ -336,8 +388,119 @@ namespace resynth {
 			}
 		}
 
+		// ---- granular ---------------------------------------------------
+		const float grx = 596.0f, grw = 560.0f;
+		Panel(grx, py3, grw, ph3, "Granular");
+		{
+			const float c1 = grx + 92, c2 = grx + 330, w = 150;
+			float sy = py3 + 48;
+
+			//GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "mix",
+			//	TextFormat("%.0f%%", synth.grain_mix * 100.0f),
+			//	&synth.grain_mix, 0.0f, 1.0f);
+			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "amp",
+				TextFormat("%.0f%%", synth.grain_amp * 100.0f),
+				& synth.grain_amp, 0.0f, 2.0f);
+			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "rate",
+				TextFormat("%.0f g/s", synth.grain_spawn_rate_per_second),
+				&synth.grain_spawn_rate_per_second, 1.0f, 200.0f);
+			sy += 28;
+
+			{
+				const char* label = "--";
+				if (!synth.sample.samples.empty() && synth.sample.sample_rate > 0) {
+					float secs = synth.grain_spawn_pos
+						* (float)synth.sample.samples.size()
+						/ (float)synth.sample.sample_rate;
+					label = TextFormat("%.2f s", secs);
+				}
+				GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "position",
+					label, &synth.grain_spawn_pos, 0.0f, 1.0f);
+			}
+			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "spray",
+				TextFormat("%.0f%%", synth.grain_spawn_pos_spray * 100.0f),
+				&synth.grain_spawn_pos_spray, 0.0f, 1.0f);
+			sy += 28;
+
+			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "life",
+				TextFormat("%.0f ms", synth.grain_life * 1000.0f),
+				&synth.grain_life, 0.005f, 0.5f);
+			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "spray",
+				TextFormat("%.0f%%", synth.grain_life_spray * 100.0f),
+				&synth.grain_life_spray, 0.0f, 1.0f);
+			sy += 28;
+
+			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "shape",
+				TextFormat("%.2f", synth.grain_shape), &synth.grain_shape, 0.0f, 1.0f);
+			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "tilt",
+				TextFormat("%.2f", synth.grain_tilt), &synth.grain_tilt, 0.02f, 0.98f);
+			sy += 30;
+
+			int overlap = (int)ceilf(synth.grain_spawn_rate_per_second * synth.grain_life);
+			bool over = overlap > grain_amount;
+			DrawTextEx(g_app_font,
+				TextFormat("~%d overlapping  (pool %d)", overlap, grain_amount),
+				{ grx + 20, sy + 3 }, 13, 1.0f,
+				over ? MAROON : Color{ 150, 150, 160, 255 });
+
+			DrawGrainEnv(Rectangle{ grx + 190, sy, grw - 210, 46 },
+				synth.grain_shape, synth.grain_tilt,
+				synth.grain_spawn_rate_per_second, synth.grain_life);
+		}
+
+		// ---- delay ------------------------------------------------------
+		const float dlx = 1172.0f, dlw = 340.0f;
+		Panel(dlx, py3, dlw, ph3, "Delay");
+		{
+			const float sx = dlx + 100, sw = 200;
+			float sy = py3 + 52;
+
+			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "time",
+				TextFormat("%.0f ms", synth.delay_time * 1000.0f),
+				&synth.delay_time, 0.01f, 2.0f);
+			sy += 32;
+
+			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "feedback",
+				TextFormat("%.0f%%", synth.delay_feedback * 100.0f),
+				&synth.delay_feedback, 0.0f, 0.95f);
+			sy += 32;
+
+			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "mix",
+				TextFormat("%.0f%%", synth.delay_amp * 100.0f),
+				&synth.delay_amp, 0.0f, 1.0f);
+			sy += 36;
+
+			// how long the tail takes to fall below -60 dB, and whether the buffer fits
+			float needed = synth.delay_time * synth.sample_rate;
+			bool over = needed > (float)delay_buffer_size;
+
+			if (synth.delay_feedback > 0.001f) {
+				float repeats = logf(0.001f) / logf(std::max(synth.delay_feedback, 0.001f));
+				DrawTextEx(g_app_font,
+					TextFormat("~%.0f repeats   tail %.1f s", repeats, repeats * synth.delay_time),
+					{ dlx + 24, sy }, 13, 1.0f, Color{ 150, 150, 160, 255 });
+			}
+			sy += 20;
+
+			if (over) {
+				DrawTextEx(g_app_font,
+					TextFormat("buffer holds %.2f s max",
+						(float)delay_buffer_size / (float)synth.sample_rate),
+					{ sx + 24, sy }, 13, 1.0f, MAROON);
+			}
+
+			GuiCheckBox(Rectangle{ sx - 60, sy, 20, 20 }, "", &synth.drive_enabled);
+
+			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "drive",
+				TextFormat("%.0f%", synth.drive),
+				&synth.drive, 0.0f, 1.0f);
+			sy += 36;
+
+			GuiCheckBox(Rectangle{ sx, sy, 20, 20 }, "drive before filter", & synth.drive_before_filter);
+		}
+
 		// ---- keyboard ---------------------------------------------------
-		const float kpy = py2 + ph2 + 328;
+		const float kpy = py3 + ph3 + 30;
 		const float ex = 20.0f;
 		DrawTextEx(g_app_font, "Keyboard", { ex, kpy }, 16, 1.0f, DARKGRAY);
 

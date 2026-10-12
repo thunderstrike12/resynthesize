@@ -3,6 +3,9 @@
 #include <cmath>
 #include <algorithm>
 
+#include <thread>
+
+
 namespace resynth {
 	namespace {
 		Synth* g_synth = nullptr;
@@ -25,6 +28,10 @@ namespace resynth {
 		for (int i = 0; i < 88; i++) {
 			keys[i].frequency = base_frequency * powf(key_ratio, (float)i);
 			keys[i].idx = i;
+		}
+		for (int i = 0; i < delay_buffer_size; i++)
+		{
+			delay_buffer[i] = 0.0f;
 		}
 	}
 
@@ -121,8 +128,8 @@ namespace resynth {
 			if (!slide || k == sounding_key) glide_freq += (glide_target - glide_freq) * slide_speed;
 			double frequency_c = slide ? glide_freq : key.frequency;
 
-			double sample_step = key.frequency / keys[root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
-			if(slide) sample_step = glide_freq / keys[root_key].frequency * ((float)sample.sample_rate / (float)sample_rate);
+			double sample_step = key.frequency / keys[sample_root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
+			if (slide) sample_step = glide_freq / keys[sample_root_key].frequency * ((float)sample.sample_rate / (float)sample_rate);
 			const double step = 2.0f * PI * frequency_c / (double)sample_rate;
 			float ratio = powf(2.0f, cents / 1200.0f);
 			const float step2 = 2.0f * PI * (frequency_c * ratio) / (float)sample_rate;
@@ -158,7 +165,7 @@ namespace resynth {
 				float hp_coeff = 1.f - expf(-2.0f * PI * hp_cutoff_curr / sample_rate);
 
 				//oscillate
-				float in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
+				float osc_in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
 
 				//sample playback
 				float sample_in = 0.0f;
@@ -166,16 +173,16 @@ namespace resynth {
 				const int n = (int)src.samples.size();
 				const double end = std::clamp((double)sample_length, 0.01, 1.0) * n;
 
-				if (n > 2) {
-					const float* s = src.samples.data();
-					auto read = [&](double p) -> float {
-						if (p < 0.0 || p + 1.0 >= (double)n) return 0.0f;
-						int i = (int)p;
-						float f = (float)(p - (double)i);
-						return s[i] * (1.0f - f) + s[i + 1] * f;
+				const float* s = src.samples.data();
+				auto read = [&](double p) -> float {
+					if (p < 0.0 || p + 1.0 >= (double)n) return 0.0f;
+					int i = (int)p;
+					float f = (float)(p - (double)i);
+					return s[i] * (1.0f - f) + s[i + 1] * f;
 					};
 
-					const double loop_begin = (double)loop_start * n;
+				if (n > 2) {
+					const double loop_begin = (double)sample_loop_start * n;
 					const double fade_len = (double)sample_loop_fade_length * n;
 					const double fade_begin = (double)end - fade_len;
 
@@ -209,13 +216,69 @@ namespace resynth {
 					}
 				}
 
-				//mix the sample and oscillator together
-				in = in * (1.0f - sample_mix) + sample_in * sample_mix;
+				//grain synthesis
+				float grain_in = 0.0f;
+				if (n > 2) {
+					if (grain_mix > 0.0001f) {
+						key.grain_spawn_accumulator += dt;
+						if (key.grain_spawn_accumulator > 1.0f / grain_spawn_rate_per_second) {
+							double pos = grain_spawn_pos * (double)key.sample.samples.size() + (rand() / (float)RAND_MAX - 0.5f) * grain_spawn_pos_spray * (double)key.sample.samples.size();
+							pos = std::clamp(pos, 0.0, (double)key.sample.samples.size() - 1.0);
+							int life = (int)(grain_life * (double)sample_rate + (rand() / (float)RAND_MAX - 0.5f) * grain_life_spray * (double)sample_rate);
+							life = std::clamp(life, 1, (int)sample_rate);
+							for (int i = 0; i < grain_amount; i++)
+							{
+								if (!key.grains[i].active) {
+									key.grains[i] = { pos, 0, life, true };
+									break;
+								}
+							}
+							key.grain_spawn_accumulator -= 1.0f / grain_spawn_rate_per_second;
+						}
+						int active_grains = 0;
+						for (int i = 0; i < grain_amount; i++)
+						{
+							Grain& g = key.grains[i];
+							if (!g.active) continue;
+							active_grains++;
+							g.age++;
+							if (g.age > g.life) {
+								g.active = false;
+							}
+							g.pos += sample_step;
 
-				//apply filter
-				float curr = filter(in, lp_coeff, hp_coeff, key);
-				if (invert) curr = in - curr;
-				out[i] += curr * amp * key.level;
+							float grain_level = 1.0f;
+							float max_level_duration = (float)g.life * grain_shape;
+							float fade_in_duration = ((float)g.life - max_level_duration) * grain_tilt;
+							float fade_out_duration = (float)g.life - max_level_duration - fade_in_duration;
+
+							if (fade_in_duration > 0.0f && g.age < fade_in_duration) {
+								grain_level = (float)g.age / fade_in_duration;
+							}
+							else if (fade_out_duration > 0.0f && g.age > fade_in_duration + max_level_duration) {
+								grain_level = 1.0f - ((float)g.age - fade_in_duration - max_level_duration) / fade_out_duration;
+							}
+
+							grain_in += read(g.pos) * grain_level;
+						}
+						if (active_grains > 0) grain_in /= sqrtf((float)active_grains);
+					}
+				}
+
+				//mix the sample and oscillator together
+				//sample_in = sample_in * (1.0f - grain_mix) + grain_out * grain_mix;
+				//in = in * (1.0f - sample_mix) + sample_in * sample_mix;
+
+				float in_tot = osc_in * osc_amp + sample_in * sample_amp + grain_in * grain_amp;
+
+				//apply filter and distortion
+				float d = 1.0f + drive * 24.0f;
+				if (drive_before_filter && drive_enabled) in_tot = tanhf(in_tot * d) / tanhf(d);
+				float curr = filter(in_tot, lp_coeff, hp_coeff, key);
+				if (invert) curr = in_tot - curr;
+				if (!drive_before_filter && drive_enabled) curr = tanhf(curr * d) / tanhf(d);
+				float output = curr * amp * key.level;
+				out[i] += output;
 				curr_out[curr_out_idx] += curr * amp * key.level;
 				key.phase += step;
 				key.phase2 += step2;
@@ -224,6 +287,18 @@ namespace resynth {
 			}
 		}
 		for (int i = 0; i < frames; i++) {
+			//apply delay
+			if (delay_feedback > 0.001f) {
+				int len = std::clamp((int)(delay_time * sample_rate), 1, delay_buffer_size);
+				if (delay_buffer_pos >= len) delay_buffer_pos = 0;
+
+				float delayed = delay_buffer[delay_buffer_pos];
+				delay_buffer[delay_buffer_pos] = out[i] + delayed * delay_feedback;
+				out[i] += delayed * delay_amp;
+
+				delay_buffer_pos++;
+			}
+
 			curr_out[curr_out_idx] = out[i];
 			curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
 		}
@@ -317,12 +392,27 @@ namespace resynth {
 		}
 		return false;
 	}
-	void Synth::load_sample_into_keys()
-	{
-		for (int k = 0; k < 88; k++) {
-			Key& key = keys[k];
-			float factor = key.frequency / keys[root_key].frequency;
-			key.sample.samples = live_spectrum.stretch(sample.samples, factor, 8192.0f);
+	//void Synth::load_sample_into_keys()
+	//{
+	//	for (int k = 0; k < 88; k++) {
+	//		Key& key = keys[k];
+	//		float factor = key.frequency / keys[root_key].frequency;
+	//		key.sample.samples = live_spectrum.stretch(sample.samples, factor, 8192.0f);
+	//	}
+	//}
+	void Synth::load_sample_into_keys() {
+		const int n_threads = std::max(1u, std::thread::hardware_concurrency());
+		std::vector<std::thread> workers;
+
+		for (int t = 0; t < n_threads; t++) {
+			workers.emplace_back([&, t] {
+				for (int k = t; k < 88; k += n_threads) {
+					float ratio = keys[k].frequency / keys[sample_root_key].frequency;
+					keys[k].sample.samples = live_spectrum.stretch(sample.samples, ratio, 8192.0f);
+					keys[k].sample.sample_rate = sample.sample_rate;
+				}
+				});
 		}
+		for (auto& w : workers) w.join();
 	}
 } // resynth
