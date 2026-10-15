@@ -20,7 +20,8 @@ namespace resynth {
 		sample_rate = rate;
 
 		g_synth = this;
-		stream = LoadAudioStream(sample_rate, 32, 1);
+		init_params();
+		stream = LoadAudioStream(sample_rate, 32, 2);
 		SetAudioStreamCallback(stream, StreamCallback);
 		PlayAudioStream(stream);
 		running = true;
@@ -41,6 +42,87 @@ namespace resynth {
 		g_synth = nullptr;
 		StopAudioStream(stream);
 		UnloadAudioStream(stream);
+	}
+
+	void Synth::init_params()
+	{
+		params[P_LP_CUTOFF] = { "high cut",    1.0f,   0.0f,   1.0f,   1.0f };
+		params[P_HP_CUTOFF] = { "low cut",     0.0f,   0.0f,   1.0f,   0.0f };
+		params[P_RESONANCE] = { "resonance",   0.0f,   0.0f,   1.3f,   0.0f };
+		params[P_DRIVE] = { "drive",       0.0f,   0.0f,   1.0f,   0.0f };
+		params[P_DETUNE] = { "detune",      8.0f, -50.0f,  50.0f,   8.0f };
+		params[P_OSC_AMP] = { "osc amp",     1.0f,   0.0f,   2.0f,   1.0f };
+		params[P_OSC_MIX] = { "osc mix",     0.5f,   0.0f,   1.0f,   0.5f };
+		params[P_OSC_STEREO] = { "osc stereo",  0.0f,   0.0f,   1.0f,   0.5f };
+		params[P_GRAIN_RATE] = { "rate",       20.0f,   0.0f, 20.0f,  50.0f };
+		params[P_GRAIN_POS] = { "position",    0.3f,   0.0f,   1.0f,   0.3f };
+		params[P_GRAIN_POS_SPRAY] = { "pos spray",   0.1f,   0.0f,   1.0f,   0.1f };
+		params[P_GRAIN_LIFE] = { "life",        0.08f,  0.005f, 0.5f,   0.08f };
+		params[P_GRAIN_LIFE_SPRAY] = { "life spray",  0.1f,   0.0f,   1.0f,   0.1f };
+		params[P_GRAIN_SHAPE] = { "shape",       0.3f,   0.0f,   1.0f,   0.3f };
+		params[P_GRAIN_TILT] = { "tilt",        0.5f,   0.02f,  0.98f,  0.5f };
+		params[P_GRAIN_AMP] = { "grain amp",   0.0f,   0.0f,   2.0f,   0.0f };
+		params[P_GRAIN_STEREO] = { "grain stereo", 0.0f,   0.0f,   1.0f,   0.5f };
+		params[P_SAMPLE_AMP] = { "sample amp",  0.0f,   0.0f,   2.0f,   0.0f };
+		params[P_SAMPLE_STEREO] = { "sample stereo", 0.0f,   0.0f,   1.0f,   0.5f };
+		params[P_SAMPLE_START] = { "start",       0.0f,   0.0f,   0.99f,  0.0f };
+		params[P_SAMPLE_LOOP_START] = { "loop from",   0.0f,   0.0f,   0.99f,  0.0f };
+		params[P_DELAY_TIME] = { "time",        0.3f,   0.01f,  2.0f,   0.3f };
+		params[P_DELAY_FEEDBACK] = { "feedback",    0.35f,  0.0f,   0.95f,  0.35f };
+		params[P_DELAY_AMP] = { "delay amp",   0.0f,   0.0f,   1.0f,   0.0f };
+		params[P_DELAY_STEREO] = { "delay stereo", 0.0f,   0.0f,   1.0f,   0.5f };
+		params[P_AMPLITUDE] = { "amplitude",   0.15f,  0.0f,   1.0f,   0.15f };
+	}
+
+	void Synth::apply_modulation()
+	{
+		for (int i = 0; i < max_lfos; i++)
+		{
+			LFO& lfo = lfos[i];
+			lfo.phase += 2.0f * PI * lfo.frequency / (float)sample_rate;
+			if (lfo.phase > 2.0f * PI) lfo.phase -= 2.0f * PI;
+			lfo.value = oscillate(lfo.phase, lfo.shape);
+		}
+		for (int i = 0; i < PARAM_COUNT; i++)
+		{
+			params[i].current = params[i].base;
+		}
+		for (int i = 0; i < routing_count; i++)
+		{
+			const Routing& r = routings[i];
+			if (r.lfo < 0 || r.lfo >= max_lfos) continue;
+			if (r.param < 0 || r.param >= PARAM_COUNT) continue;
+			const LFO& lfo = lfos[r.lfo];
+			float lfo_value = lfo.value;
+			params[r.param].current += lfo_value * r.depth * (params[r.param].hi - params[r.param].lo);
+			params[r.param].current = std::clamp(params[r.param].current, params[r.param].lo, params[r.param].hi);
+		}
+	}
+
+	int Synth::find_routing(int lfo, int param) const {
+		for (int i = 0; i < max_routings; i++)
+			if (routings[i].lfo == lfo && routings[i].param == param) return i;
+		return -1;
+	}
+
+	void Synth::set_routing(int lfo, int param, float depth) {
+		int i = find_routing(lfo, param);
+
+		if (fabsf(depth) < 0.0001f) {
+			if (i >= 0) routings[i] = Routing{};
+			routing_count--;
+			return;
+		}
+
+		if (i >= 0) { routings[i].depth = depth; return; }
+
+		for (int s = 0; s < max_routings; s++) {
+			if (routings[s].lfo < 0) {
+				routings[s] = { lfo, param, depth };
+				routing_count++;
+				return;
+			}
+		}
 	}
 
 	float Synth::oscillate(float phase, WaveShape shape)
@@ -107,7 +189,7 @@ namespace resynth {
 		//beware of high resonance cuasing this clamp to be nessecary
 		//key.out_last = std::clamp(sig, -4.0f, 4.0f);
 		//if (!std::isfinite(key.out_last)) key.out_last = 0.0f;
-		sig -= key.out_last * resonance;
+		sig -= key.out_last * params[P_RESONANCE].current;
 		for (int i = 0; i < poles; i++)
 		{
 			key.hp_last[i] = key.hp_last[i] + (sig - key.hp_last[i]) * hp_coeff;
@@ -121,8 +203,9 @@ namespace resynth {
 	}
 
 	void Synth::Render(float* out, int frames) {
-		for (int i = 0; i < frames; i++) out[i] = 0.0f;
+		for (int i = 0; i < frames * 2.0f; i++) out[i] = 0.0f;
 		for (int k = 0; k < 88; k++) {
+			apply_modulation();
 			Key& key = keys[k];
 			if (key.stage == IDLE) continue;
 			if (!slide || k == sounding_key) glide_freq += (glide_target - glide_freq) * slide_speed;
@@ -131,9 +214,9 @@ namespace resynth {
 			double sample_step = key.frequency / keys[sample_root_key].frequency * ((double)sample.sample_rate / (double)sample_rate);
 			if (slide) sample_step = glide_freq / keys[sample_root_key].frequency * ((float)sample.sample_rate / (float)sample_rate);
 			const double step = 2.0f * PI * frequency_c / (double)sample_rate;
-			float ratio = powf(2.0f, cents / 1200.0f);
+			float ratio = powf(2.0f, params[P_DETUNE].current / 1200.0f);
 			const float step2 = 2.0f * PI * (frequency_c * ratio) / (float)sample_rate;
-			const float amp = amplitude;
+			const float amp = params[P_AMPLITUDE].current;
 			float dt = 1.0f / sample_rate;
 
 			float attack_step = attack > 0.0f ? dt / attack : 1.0f;
@@ -155,8 +238,8 @@ namespace resynth {
 				envelope(key.lp_cutoff_stage, key.lp_cutoff_level, lp_attack_step, lp_decay_step, lp_sustain, lp_release_step);
 				envelope(key.hp_cutoff_stage, key.hp_cutoff_level, hp_attack_step, hp_decay_step, hp_sustain, hp_release_step);
 				if (slide && sounding_key != k)continue;//process envelopes of all keys, but only add to out when sliding and key == last key presed
-				float lp_cutoff_curr = std::clamp(lp_cutoff + lp_env_amount * key.lp_cutoff_level, 0.0f, 1.0f);
-				float hp_cutoff_curr = std::clamp(hp_cutoff + hp_env_amount * key.hp_cutoff_level, 0.0f, 1.0f);
+				float lp_cutoff_curr = std::clamp(params[P_LP_CUTOFF].current + lp_env_amount * key.lp_cutoff_level, 0.0f, 1.0f);
+				float hp_cutoff_curr = std::clamp(params[P_HP_CUTOFF].current + hp_env_amount * key.hp_cutoff_level, 0.0f, 1.0f);
 				dbg_lp = lp_cutoff_curr, dbg_hp = hp_cutoff_curr;
 				lp_cutoff_curr = 20 * powf(1000, lp_cutoff_curr);
 				hp_cutoff_curr = 20 * powf(1000, hp_cutoff_curr);
@@ -165,7 +248,7 @@ namespace resynth {
 				float hp_coeff = 1.f - expf(-2.0f * PI * hp_cutoff_curr / sample_rate);
 
 				//oscillate
-				float osc_in = (oscillate(key.phase, wave_shape) * osc_lerp + oscillate(key.phase2, wave_shape2) * (1.0f - osc_lerp));
+				float osc_in = (oscillate(key.phase, wave_shape) * params[P_OSC_MIX].current + oscillate(key.phase2, wave_shape2) * (1.0f - params[P_OSC_MIX].current));
 
 				//sample playback
 				float sample_in = 0.0f;
@@ -182,7 +265,7 @@ namespace resynth {
 					};
 
 				if (n > 2) {
-					const double loop_begin = (double)sample_loop_start * n;
+					const double loop_begin = (double)params[P_SAMPLE_LOOP_START].current * n;
 					const double fade_len = (double)sample_loop_fade_length * n;
 					const double fade_begin = (double)end - fade_len;
 
@@ -219,12 +302,12 @@ namespace resynth {
 				//grain synthesis
 				float grain_in = 0.0f;
 				if (n > 2) {
-					if (grain_mix > 0.0001f) {
+					if (params[P_GRAIN_AMP].current > 0.0001f) {
 						key.grain_spawn_accumulator += dt;
-						if (key.grain_spawn_accumulator > 1.0f / grain_spawn_rate_per_second) {
-							double pos = grain_spawn_pos * (double)key.sample.samples.size() + (rand() / (float)RAND_MAX - 0.5f) * grain_spawn_pos_spray * (double)key.sample.samples.size();
+						if (key.grain_spawn_accumulator > 1.0f / params[P_GRAIN_RATE].current) {
+							double pos = params[P_GRAIN_POS].current * (double)key.sample.samples.size() + (rand() / (float)RAND_MAX - 0.5f) * params[P_GRAIN_POS_SPRAY].current * (double)key.sample.samples.size();
 							pos = std::clamp(pos, 0.0, (double)key.sample.samples.size() - 1.0);
-							int life = (int)(grain_life * (double)sample_rate + (rand() / (float)RAND_MAX - 0.5f) * grain_life_spray * (double)sample_rate);
+							int life = (int)(params[P_GRAIN_LIFE].current * (double)sample_rate + (rand() / (float)RAND_MAX - 0.5f) * params[P_GRAIN_LIFE_SPRAY].current * (double)sample_rate);
 							life = std::clamp(life, 1, (int)sample_rate);
 							for (int i = 0; i < grain_amount; i++)
 							{
@@ -233,7 +316,7 @@ namespace resynth {
 									break;
 								}
 							}
-							key.grain_spawn_accumulator -= 1.0f / grain_spawn_rate_per_second;
+							key.grain_spawn_accumulator -= 1.0f / params[P_GRAIN_RATE].current;
 						}
 						int active_grains = 0;
 						for (int i = 0; i < grain_amount; i++)
@@ -248,8 +331,8 @@ namespace resynth {
 							g.pos += sample_step;
 
 							float grain_level = 1.0f;
-							float max_level_duration = (float)g.life * grain_shape;
-							float fade_in_duration = ((float)g.life - max_level_duration) * grain_tilt;
+							float max_level_duration = (float)g.life * params[P_GRAIN_SHAPE].current;
+							float fade_in_duration = ((float)g.life - max_level_duration) * params[P_GRAIN_TILT].current;
 							float fade_out_duration = (float)g.life - max_level_duration - fade_in_duration;
 
 							if (fade_in_duration > 0.0f && g.age < fade_in_duration) {
@@ -265,21 +348,30 @@ namespace resynth {
 					}
 				}
 
-				//mix the sample and oscillator together
-				//sample_in = sample_in * (1.0f - grain_mix) + grain_out * grain_mix;
-				//in = in * (1.0f - sample_mix) + sample_in * sample_mix;
-
-				float in_tot = osc_in * osc_amp + sample_in * sample_amp + grain_in * grain_amp;
+				//mix all sources together
+				osc_in = osc_in * params[P_OSC_AMP].current;
+				sample_in = sample_in * params[P_SAMPLE_AMP].current;
+				grain_in = grain_in * params[P_GRAIN_AMP].current;
+				float in_tot_l = osc_in * (1.0f - params[P_OSC_STEREO].current) + sample_in * (1.0f - params[P_SAMPLE_STEREO].current) + grain_in * (1.0f - params[P_GRAIN_STEREO].current);
+				float in_tot_r = osc_in * params[P_OSC_STEREO].current + sample_in * params[P_SAMPLE_STEREO].current + grain_in * params[P_GRAIN_STEREO].current;
 
 				//apply filter and distortion
-				float d = 1.0f + drive * 24.0f;
-				if (drive_before_filter && drive_enabled) in_tot = tanhf(in_tot * d) / tanhf(d);
-				float curr = filter(in_tot, lp_coeff, hp_coeff, key);
-				if (invert) curr = in_tot - curr;
-				if (!drive_before_filter && drive_enabled) curr = tanhf(curr * d) / tanhf(d);
-				float output = curr * amp * key.level;
-				out[i] += output;
-				curr_out[curr_out_idx] += curr * amp * key.level;
+				float d = 1.0f + params[P_DRIVE].current * 24.0f;
+				if (drive_before_filter && drive_enabled) { 
+					in_tot_l = tanhf(in_tot_l *d) / tanhf(d);
+					in_tot_r = tanhf(in_tot_r * d) / tanhf(d);
+				}
+				float curr_l = filter(in_tot_l, lp_coeff, hp_coeff, key);
+				float curr_r = filter(in_tot_r, lp_coeff, hp_coeff, key);
+				if (invert) curr_l = in_tot_l - curr_l;
+				if (invert) curr_r = in_tot_r - curr_r;
+				if (!drive_before_filter && drive_enabled) curr_l = tanhf(curr_l * d) / tanhf(d);
+				if (!drive_before_filter && drive_enabled) curr_r = tanhf(curr_r * d) / tanhf(d);
+				float output_l = curr_l * amp * key.level;
+				float output_r = curr_r * amp * key.level;
+				out[i * 2] += output_l;
+				out[i * 2 + 1] += output_r;
+				curr_out[curr_out_idx] += (curr_l + curr_r) * amp * key.level;
 				key.phase += step;
 				key.phase2 += step2;
 				if (key.phase >= 2.0f * PI) key.phase -= 2.0f * PI;
@@ -288,19 +380,34 @@ namespace resynth {
 		}
 		for (int i = 0; i < frames; i++) {
 			//apply delay
-			if (delay_feedback > 0.001f) {
-				int len = std::clamp((int)(delay_time * sample_rate), 1, delay_buffer_size);
+			if (params[P_DELAY_FEEDBACK].current > 0.001f) {
+				int len = std::clamp((int)(params[P_DELAY_TIME].current * sample_rate), 1, delay_buffer_size / 2);
 				if (delay_buffer_pos >= len) delay_buffer_pos = 0;
 
-				float delayed = delay_buffer[delay_buffer_pos];
-				delay_buffer[delay_buffer_pos] = out[i] + delayed * delay_feedback;
-				out[i] += delayed * delay_amp;
+				float delayed_l = delay_buffer[delay_buffer_pos * 2];
+				float delayed_r = delay_buffer[delay_buffer_pos * 2 + 1];
+				//delay_buffer[delay_buffer_pos * 2] = (out[i * 2] + delayed_l * params[P_DELAY_FEEDBACK].current) * (1.0f - params[P_DELAY_STEREO].current);
+				//delay_buffer[delay_buffer_pos * 2 + 1] = out[i * 2 + 1] + delayed_r * params[P_DELAY_FEEDBACK].current * params[P_DELAY_STEREO].current;
+
+				float fb = params[P_DELAY_FEEDBACK].current;
+				float x = params[P_DELAY_STEREO].current;   // 0 = parallel, 1 = full ping-pong
+
+				delay_buffer[delay_buffer_pos * 2] = out[i * 2] + (delayed_l * (1 - x) + delayed_r * x) * fb;
+				delay_buffer[delay_buffer_pos * 2 + 1] = out[i * 2 + 1] + (delayed_r * (1 - x) + delayed_l * x) * fb;
+
+				out[i * 2] += delayed_l * params[P_DELAY_AMP].current * params[P_AMPLITUDE].current;
+				out[i * 2 + 1] += delayed_r * params[P_DELAY_AMP].current * params[P_AMPLITUDE].current;
 
 				delay_buffer_pos++;
 			}
 
-			curr_out[curr_out_idx] = out[i];
-			curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
+			//curr_out[curr_out_idx] = out[i];
+			//curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
+
+			for (int i = 0; i < frames; i++) {
+				curr_out[curr_out_idx] = (out[i * 2] + out[i * 2 + 1]) * 0.5f;
+				curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
+			}
 		}
 	}
 	void Synth::Update() {
@@ -325,7 +432,7 @@ namespace resynth {
 						key.stage = ATTACK;
 						key.lp_cutoff_stage = ATTACK;
 						key.hp_cutoff_stage = ATTACK;
-						key.sample_pos = sample_start * (float)sample.samples.size();
+						key.sample_pos = params[P_SAMPLE_START].current * (float)sample.samples.size();
 					}
 					else {
 						key.take_state_from(keys[sounding_key]);
@@ -336,7 +443,7 @@ namespace resynth {
 					key.stage = ATTACK;
 					key.lp_cutoff_stage = ATTACK;
 					key.hp_cutoff_stage = ATTACK;
-					key.sample_pos = sample_start * (float)sample.samples.size();
+					key.sample_pos = params[P_SAMPLE_START].current * (float)sample.samples.size();
 				}
 				sounding_key = (int)(&key - keys);
 				key.was_down = true;
@@ -392,6 +499,7 @@ namespace resynth {
 		}
 		return false;
 	}
+
 	//void Synth::load_sample_into_keys()
 	//{
 	//	for (int k = 0; k < 88; k++) {

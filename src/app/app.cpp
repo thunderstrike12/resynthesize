@@ -33,14 +33,10 @@ namespace {
 	};
 	constexpr int kKeyCodeCount = (int)(sizeof(kKeyCodes) / sizeof(kKeyCodes[0]));
 
-
-	// maps a slider position (0..1) to x across the strip
 	inline float BandX(Rectangle r, float u) { return r.x + u * r.width; }
 
 	void DrawFilterBand(Rectangle r, float lp_u, float hp_u, bool invert, float lp_curr, float hp_curr) {
 		DrawRectangleRec(r, Color{ 252, 252, 254, 255 });
-
-		// decade gridlines at 100, 1k, 10k  (u = log(hz/20) / log(1000))
 		const float marks[3] = { 100.0f, 1000.0f, 10000.0f };
 		const char* labels[3] = { "100", "1k", "10k" };
 		for (int i = 0; i < 3; i++) {
@@ -54,8 +50,6 @@ namespace {
 		float lx = BandX(r, lp_u), hx = BandX(r, hp_u);
 		if (invert) {
 			if (lx > hx) {
-				//DrawRectangleRec(Rectangle{ hx, r.y, lx - hx, r.height }, Color{ 190, 220, 248, 255 });
-
 				DrawRectangleRec(Rectangle{ r.x, r.y, hx - r.x, r.height }, Color{ 190, 220, 248, 255 });
 				DrawRectangleRec(Rectangle{ lx, r.y, r.width - (lx - r.x) , r.height }, Color{ 190, 220, 248, 255 });
 			}
@@ -73,7 +67,7 @@ namespace {
 
 		DrawRectangleLinesEx(r, 1, Color{ 200, 200, 208, 255 });
 	}
-	// matches Render exactly: shape = fraction at full level, tilt = split of the rest
+
 	inline float GrainEnvAt(float u, float shape, float tilt) {
 		float max_dur = shape;
 		float fade_in = (1.0f - max_dur) * tilt;
@@ -89,10 +83,10 @@ namespace {
 
 		BeginScissorMode((int)r.x, (int)r.y, (int)r.width, (int)r.height);
 
-		const float span = 0.6f;                        // seconds across the strip
+		const float span = 0.6f;
 		const float px_per_s = r.width / span;
-		const float life_w = life * px_per_s;             // one grain's width
-		const float step_w = (rate > 0.0f) ? px_per_s / rate : r.width;   // spacing
+		const float life_w = life * px_per_s;
+		const float step_w = (rate > 0.0f) ? px_per_s / rate : r.width;
 
 		const int count = (int)ceilf((r.width + life_w) / std::max(step_w, 1.0f));
 
@@ -120,11 +114,119 @@ namespace resynth {
 	void App::DrawViewTabs() {
 		if (GuiButton(Rectangle{ 20, 5, 120, 30 }, "Analysis")) view = View::Analysis;
 		if (GuiButton(Rectangle{ 150, 5, 120, 30 }, "Synth"))    view = View::Synth;
-		// slider for master volume if synth is active
-		if(view == View::Synth) {
+		if (view == View::Synth) {
 			GuiSliderBar(Rectangle{ 380, 5, 200, 30 }, "master volume",
-				TextFormat("%.0f%%", synth.amplitude * 100.0f),
-				&synth.amplitude, 0.0f, 2.0f);
+				TextFormat("%.0f%%", synth.params[P_AMPLITUDE].base * 100.0f),
+				&synth.params[P_AMPLITUDE].base, 0.0f, 2.0f);
+		}
+	}
+
+	// A slider bound to a Param. Draws the base value normally, overlays the
+	// modulation range as a band, and a live marker at the current value.
+	// Right-click opens the routing popup for this parameter.
+	void App::ModSlider(Rectangle r, const char* label, const char* fmt, ParamId id, float display_scale) {
+		Param& p = synth.params[id];
+		Vector2 mouse = GetMousePosition();
+
+		float swing = 0.0f;
+		for (int i = 0; i < max_routings; i++) {
+			const Routing& rt = synth.routings[i];
+			if (rt.lfo >= 0 && rt.param == (int)id) swing += fabsf(rt.depth);
+		}
+		swing = std::min(swing, 1.0f);
+
+		const char* txt;
+		if (strcmp(fmt, "hz") == 0)
+			txt = TextFormat("%.0f Hz", 20.0f * powf(1000.0f, p.base));
+		else
+			txt = TextFormat(fmt, p.base * display_scale);
+
+		float v = p.base;
+		GuiSliderBar(r, label, TextFormat(txt, p.base), &v, p.lo, p.hi);
+		p.base = v;
+
+		if (swing > 0.0001f) {
+			const float span = p.hi - p.lo;
+			auto to_x = [&](float val) {
+				return r.x + std::clamp((val - p.lo) / span, 0.0f, 1.0f) * r.width;
+				};
+
+			// band showing the reachable range
+			float x0 = to_x(p.base - swing * span);
+			float x1 = to_x(p.base + swing * span);
+			DrawRectangleRec(Rectangle{ x0, r.y + r.height - 4, x1 - x0, 3 },
+				Color{ 235, 140, 60, 170 });
+
+			// live marker at the modulated value
+			float xc = to_x(p.current);
+			DrawRectangleRec(Rectangle{ xc - 1.0f, r.y, 2.0f, r.height },
+				Color{ 235, 140, 60, 255 });
+		}
+
+		if (CheckCollisionPointRec(mouse, r) && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+			popup_param = (int)id;
+			popup_pos = { r.x, r.y + r.height + 4 };
+			mouse_up_since_popup = false;
+		}
+	}
+
+	void App::DrawModPopup() {
+		if (popup_param < 0) return;
+
+		const float w = 500.0f, row = 28.0f;
+		const float h = 42.0f + max_lfos * row;
+		Rectangle box = { popup_pos.x + 10, popup_pos.y + 10, w, h };
+
+		// keep it on screen
+		box.x = std::min(box.x, (float)GetScreenWidth() - w - 8);
+		box.y = std::min(box.y, (float)GetScreenHeight() - h - 8);
+
+		Vector2 mouse = GetMousePosition();
+		bool inside = CheckCollisionPointRec(mouse, box);
+
+		if (!IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) mouse_up_since_popup = true;
+
+		/// click outside closes
+		if ((!inside && (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) ||
+			IsMouseButtonPressed(MOUSE_BUTTON_RIGHT))) && mouse_up_since_popup) {
+			popup_param = -1;
+			return;
+		}
+		if (IsKeyPressed(KEY_SPACE)) { popup_param = -1; return; }
+
+		DrawRectangleRec(box, Color{ 250, 250, 252, 255 });
+		DrawRectangleLinesEx(box, 1, Color{ 160, 160, 170, 255 });
+
+		DrawTextEx(g_app_font, synth.params[popup_param].name,
+			{ box.x + 12, box.y + 10 }, 15, 1.0f, DARKGRAY);
+
+		for (int l = 0; l < max_lfos; l++) {
+			float y = box.y + 36 + l * row;
+
+			int idx = synth.find_routing(l, popup_param);
+
+			DrawTextEx(resynth::g_app_font, TextFormat("LFO %i", l + 1), { box.x + 12, y }, 11, 1.0f,
+				Color{ 175, 175, 185, 255 });
+
+			if (idx < 0) {
+				if (GuiButton(Rectangle{ box.x + 62, y, 200, 18 }, "Make Connection")) {
+					synth.set_routing(l, popup_param, 0.5f);
+					idx = synth.find_routing(l, popup_param);
+				}
+			}
+			else {
+				if (GuiButton(Rectangle{ box.x + 62, y, 200, 18 }, "Delete Connection")) {
+					synth.set_routing(l, popup_param, 0.0f);
+					idx = synth.find_routing(l, popup_param);
+				}
+			}
+
+			if (idx >= 0) {
+				float d = synth.routings[idx].depth;
+				GuiSliderBar(Rectangle{ box.x + 330, y, 120, 18 }, "",
+					TextFormat("%+.2f", d), &d, -1.0f, 1.0f);
+				synth.routings[idx].depth = d;
+			}
 		}
 	}
 
@@ -132,6 +234,8 @@ namespace resynth {
 		const float py = 60.0f, ph = 250.0f;
 		const float py2 = 326.0f, ph2 = 250.0f;
 		const float py3 = 592.0f, ph3 = 250.0f;
+		const float py4 = 858.0f, ph4 = 250.0f;
+		const float py5 = 1124.0f, ph5 = 250.0f;
 
 		auto Panel = [&](float x, float y, float w, float h, const char* title) {
 			DrawRectangleRec(Rectangle{ x, y, w, h }, Color{ 248, 248, 250, 255 });
@@ -155,12 +259,11 @@ namespace resynth {
 
 		Vector2 mouse = GetMousePosition();
 
-		// one row of four shape buttons, editing whichever shape is passed in
 		auto ShapeRow = [&](float x, float y, WaveShape& target) {
 			const WaveShape shapes[4] = { SINE, SAW, SQUARE, TRIANGLE };
 			const char* names[4] = { "sine", "saw", "square", "tri" };
 			for (int i = 0; i < 4; i++) {
-				Rectangle r = { x + (float)i * 110, y, 104, 44 };
+				Rectangle r = { x + (float)i * 110, y, 104, 40 };
 				bool active = target == shapes[i];
 				bool hover = CheckCollisionPointRec(mouse, r);
 				if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) target = shapes[i];
@@ -172,7 +275,7 @@ namespace resynth {
 
 				Vector2 ns = MeasureTextEx(g_app_font, names[i], 13, 1.0f);
 				DrawTextEx(g_app_font, names[i],
-					{ r.x + (104 - ns.x) * 0.5f, r.y + 15 }, 13, 1.0f,
+					{ r.x + (104 - ns.x) * 0.5f, r.y + 13 }, 13, 1.0f,
 					active ? Color{ 40, 100, 175, 255 } : Color{ 130, 130, 140, 255 });
 			}
 			};
@@ -181,23 +284,25 @@ namespace resynth {
 		const float osx = 20.0f, osw = 560.0f;
 		Panel(osx, py, osw, ph, "Oscillators");
 		{
-			DrawTextEx(g_app_font, "osc 1", { osx + 20, py + 56 }, 14, 1.0f, DARKGRAY);
-			ShapeRow(osx + 76, py + 44, synth.wave_shape);
+			const float sx = osx + 86, sw = 300;
+			float sy = py + 42;
 
-			DrawTextEx(g_app_font, "osc 2", { osx + 20, py + 112 }, 14, 1.0f, DARKGRAY);
-			ShapeRow(osx + 76, py + 100, synth.wave_shape2);
+			DrawTextEx(g_app_font, "osc 1", { osx + 20, py + 52 }, 14, 1.0f, DARKGRAY);
+			ShapeRow(osx + 76, sy, synth.wave_shape);
+			sy += 48;
 
-			GuiSliderBar(Rectangle{ osx + 86, py + 168, 340, 20 }, "detune",
-				TextFormat("%.1f ct", synth.cents), &synth.cents, 0.0f, 50.0f);
-			GuiSliderBar(Rectangle{ osx + 86, py + 200, 340, 20 }, "mix",
-				TextFormat("%.0f%%", synth.osc_lerp * 100.0f), &synth.osc_lerp, 0.0f, 1.0f);
-			GuiSliderBar(Rectangle{ osx + 86, py + 232, 340, 20 }, "amp",
-				TextFormat("%.0f%%", synth.osc_amp * 100.0f), &synth.osc_amp, 0.0f, 2.0f);
+			DrawTextEx(g_app_font, "osc 2", { osx + 20, sy + 10 }, 14, 1.0f, DARKGRAY);
+			ShapeRow(osx + 76, sy, synth.wave_shape2);
+			sy += 54;
 
-			GuiCheckBox(Rectangle{ osx + 86, py + 264, 20, 20 }, "slide", &synth.slide);
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "stereo", "%.0f%%", P_OSC_STEREO, 100.0f);  sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "amp", "%.0f%%", P_OSC_AMP, 100.0f);  sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "mix", "%.0f%%", P_OSC_MIX, 100.0f);  sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "detune", "%.1f ct", P_DETUNE);          sy += 28;
 
-			GuiSliderBar(Rectangle{ osx + 226, py + 264, 200, 20 }, "slide speed",
-				TextFormat("%.2f%", synth.slide_speed), &synth.slide_speed, 0.0f, 1.0f);
+			GuiCheckBox(Rectangle{ sx, sy, 20, 20 }, "slide", &synth.slide);
+			GuiSliderBar(Rectangle{ sx + 140, sy, 160, 20 }, "speed",
+				TextFormat("%.2f", synth.slide_speed), &synth.slide_speed, 0.0f, 1.0f);
 		}
 
 		// ---- amp envelope -----------------------------------------------
@@ -209,26 +314,29 @@ namespace resynth {
 		const float fx = 1012.0f, fw = 440.0f;
 		Panel(fx, py, fw, ph, "Filter");
 		{
-			DrawFilterBand(Rectangle{ fx + 20, py + 44, fw - 40, 50 },
-				synth.lp_cutoff, synth.hp_cutoff, synth.invert, synth.dbg_lp, synth.dbg_hp);
+			DrawFilterBand(Rectangle{ fx + 20, py + 40, fw - 40, 44 },
+				synth.params[P_LP_CUTOFF].current, synth.params[P_HP_CUTOFF].current,
+				synth.invert, synth.dbg_lp, synth.dbg_hp);
 
-			float sy = py + 108;
-			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "low cut",
-				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.hp_cutoff)),
-				&synth.hp_cutoff, 0.0f, 1.0f);
+			const float sx = fx + 86, sw = 280;
+			float sy = py + 96;
+
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "low cut", "hz", P_HP_CUTOFF);   sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "high cut", "hz", P_LP_CUTOFF);   sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "resonance", "%.2f", P_RESONANCE); sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "drive", "%.0f%%", P_DRIVE, 100.0f);
+			GuiCheckBox(Rectangle{ fx + 56, sy, 20, 20 }, "", &synth.drive_enabled);
 			sy += 30;
-			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "high cut",
-				TextFormat("%.0f Hz", 20.0f * powf(1000.0f, synth.lp_cutoff)),
-				&synth.lp_cutoff, 0.0f, 1.0f);
-			sy += 30;
-			GuiSliderBar(Rectangle{ fx + 86, sy, 280, 20 }, "resonance",
-				TextFormat("%.2f", synth.resonance), &synth.resonance, 0.0f, 1.5f);
-			sy += 34;
-			GuiCheckBox(Rectangle{ fx + 86, sy, 20, 20 }, "invert", &synth.invert);
+
+			GuiCheckBox(Rectangle{ sx, sy, 20, 20 }, "invert", &synth.invert);
 			float poles_f = (float)synth.poles;
-			GuiSliderBar(Rectangle{ fx + 216, sy, 120, 20 }, "poles",
+			GuiSliderBar(Rectangle{ sx + 150, sy, 130, 20 }, "poles",
 				TextFormat("%d", synth.poles), &poles_f, 1.0f, 4.0f);
 			synth.poles = std::clamp((int)poles_f, 1, 4);
+			sy += 28;
+
+			GuiCheckBox(Rectangle{ sx, sy, 20, 20 }, "drive pre-filter",
+				&synth.drive_before_filter);
 		}
 
 		// ---- waveform preview -------------------------------------------
@@ -267,8 +375,8 @@ namespace resynth {
 			const int points = 200;
 			std::vector<float> fxs(points), fys(points);
 
-			float lp_hz = 20.0f * powf(1000.0f, synth.lp_cutoff);
-			float hp_hz = 20.0f * powf(1000.0f, synth.hp_cutoff);
+			float lp_hz = 20.0f * powf(1000.0f, synth.params[P_LP_CUTOFF].current);
+			float hp_hz = 20.0f * powf(1000.0f, synth.params[P_HP_CUTOFF].current);
 			float lp_coeff = 1.0f - expf(-2.0f * PI * lp_hz / synth.sample_rate);
 			float hp_coeff = 1.0f - expf(-2.0f * PI * hp_hz / synth.sample_rate);
 
@@ -294,7 +402,7 @@ namespace resynth {
 				}
 
 				fxs[p] = log10f(hz);
-				fys[p] = peak * synth.amplitude;
+				fys[p] = peak/* * synth.params[P_OSC_AMP].current*/;
 			}
 
 			synth.fill_live_spectrum();
@@ -316,7 +424,7 @@ namespace resynth {
 		const float smx = 20.0f, smw = 560.0f;
 		Panel(smx, py3, smw, ph3, "Sampler");
 		{
-			if (GuiButton(Rectangle{ smx + 20, py3 + 44, 120, 28 }, "Load Sample...")) {
+			if (GuiButton(Rectangle{ smx + 20, py3 + 40, 120, 26 }, "Load Sample...")) {
 				const char* filter_patterns[2] = { "*.wav", "*.mp3" };
 				const char* selected = tinyfd_openFileDialog(
 					"Select Sample", "", 2, filter_patterns, "Audio files", 0);
@@ -326,65 +434,56 @@ namespace resynth {
 					synth.sample.load(sample_path);
 				}
 			}
-			if (GuiButton(Rectangle{ smx + 360, py3 + 44, 120, 28 }, "Load into keys")) {
+			if (GuiButton(Rectangle{ smx + 420, py3 + 40, 120, 26 }, "Load into keys"))
 				synth.load_sample_into_keys();
-			}
 
-			// filename only, not the whole path
 			const char* shown = "no sample loaded";
-			if (synth.sample.samples.size() > 0) {
+			if (!synth.sample.samples.empty()) {
 				shown = sample_path;
 				for (const char* p = sample_path; *p; p++)
 					if (*p == '\\' || *p == '/') shown = p + 1;
 			}
-			DrawTextEx(g_app_font, shown, { smx + 152, py3 + 51 }, 14, 1.0f,
+			DrawTextEx(g_app_font, shown, { smx + 152, py3 + 40 }, 13, 1.0f,
 				synth.sample.samples.empty() ? Color{ 170,170,180,255 } : DARKGRAY);
 
 			if (!synth.sample.samples.empty()) {
 				float secs = (float)synth.sample.samples.size()
 					/ (float)std::max(synth.sample.sample_rate, 1);
 				DrawTextEx(g_app_font,
-					TextFormat("%d samples   %.2f s   %d Hz",
-						(int)synth.sample.samples.size(), secs, synth.sample.sample_rate),
-					{ smx + 152, py3 + 72 }, 13, 1.0f, Color{ 150, 150, 160, 255 });
+					TextFormat("%.2f s   %d Hz", secs, synth.sample.sample_rate),
+					{ smx + 152, py3 + 56 }, 12, 1.0f, Color{ 150, 150, 160, 255 });
 			}
 
-			float sy = py3 + 106;
+			const float c1 = smx + 92, c2 = smx + 330, w = 150;
+			float sy = py3 + 80;
 
-			float root_f = (float)synth.sample_root_key;
-			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "root",
-				TextFormat("%s%d", kNoteNames[synth.sample_root_key % 12], OctaveOf(synth.sample_root_key)),
-				&root_f, 0.0f, 87.0f);
-			synth.sample_root_key = std::clamp((int)root_f, 0, 87);
-			DrawTextEx(g_app_font,
-				TextFormat("%.1f Hz", synth.keys[synth.sample_root_key].frequency),
-				{ smx + 396, sy + 3 }, 13, 1.0f, Color{ 150, 150, 160, 255 });
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "stereo", "%.0f%%", P_SAMPLE_STEREO, 100.0f);		sy += 28;
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "amp", "%.0f%%", P_SAMPLE_AMP, 100.0f);
+			{
+				float root_f = (float)synth.sample_root_key;
+				GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "root",
+					TextFormat("%s%d", kNoteNames[synth.sample_root_key % 12],
+						OctaveOf(synth.sample_root_key)),
+					&root_f, 0.0f, 87.0f);
+				synth.sample_root_key = std::clamp((int)root_f, 0, 87);
+			}
+			sy += 28;
+
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "start", "%.0f%%", P_SAMPLE_START, 100.0f);
+			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "length",
+				TextFormat("%.0f%%", synth.sample_length * 100.0f),
+				&synth.sample_length, 0.01f, 1.0f);
 			sy += 32;
 
-			//GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "mix",
-			//	TextFormat("%.0f%% sample", synth.sample_mix * 100.0f),
-			//	&synth.sample_mix, 0.0f, 1.0f);
-			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "amp",
-				TextFormat("%.0f%% sample", synth.sample_amp * 100.0f),
-				& synth.sample_amp, 0.0f, 2.0f);
-			sy += 32;
+			GuiCheckBox(Rectangle{ c1, sy, 20, 20 }, "loop", &synth.sample_loop);
+			sy += 28;
 
-			GuiSliderBar(Rectangle{ smx + 86, sy, 300, 20 }, "start",
-				TextFormat("%.0f%%", synth.sample_start * 100.0f),
-				&synth.sample_start, 0.0f, 0.99f);
-			sy += 32;
-
-			GuiCheckBox(Rectangle{ smx + 86, sy, 20, 20 }, "loop", &synth.sample_loop);
 			if (synth.sample_loop) {
-				GuiSliderBar(Rectangle{ smx + 206, sy, 180, 20 }, "loop from",
-					TextFormat("%.0f%%", synth.sample_loop_start * 100.0f),
-					&synth.sample_loop_start, 0.0f, 0.99f);
-				GuiSliderBar(Rectangle{ smx + 206, sy + 30, 180, 20 }, "loop fade length",
+				ModSlider(Rectangle{ c1, sy, w, 20 }, "loop from", "%.0f%%",
+					P_SAMPLE_LOOP_START, 100.0f);
+				GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "fade",
 					TextFormat("%.0f%%", synth.sample_loop_fade_length * 100.0f),
-					& synth.sample_loop_fade_length, 0.0f, 0.99f);
-				GuiSliderBar(Rectangle{ smx + 206, sy + 60, 180, 20 }, "sample length",
-					TextFormat("%.0f%%", synth.sample_length * 100.0f),
-					& synth.sample_length, 0.0f, 0.99f);
+					&synth.sample_loop_fade_length, 0.0f, 0.5f);
 			}
 		}
 
@@ -393,59 +492,38 @@ namespace resynth {
 		Panel(grx, py3, grw, ph3, "Granular");
 		{
 			const float c1 = grx + 92, c2 = grx + 330, w = 150;
-			float sy = py3 + 48;
+			float sy = py3 + 44;
 
-			//GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "mix",
-			//	TextFormat("%.0f%%", synth.grain_mix * 100.0f),
-			//	&synth.grain_mix, 0.0f, 1.0f);
-			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "amp",
-				TextFormat("%.0f%%", synth.grain_amp * 100.0f),
-				& synth.grain_amp, 0.0f, 2.0f);
-			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "rate",
-				TextFormat("%.0f g/s", synth.grain_spawn_rate_per_second),
-				&synth.grain_spawn_rate_per_second, 1.0f, 200.0f);
+			ModSlider(Rectangle{ c2, sy, w, 20 }, "stereo", "%.2f r", P_GRAIN_STEREO);
 			sy += 28;
 
-			{
-				const char* label = "--";
-				if (!synth.sample.samples.empty() && synth.sample.sample_rate > 0) {
-					float secs = synth.grain_spawn_pos
-						* (float)synth.sample.samples.size()
-						/ (float)synth.sample.sample_rate;
-					label = TextFormat("%.2f s", secs);
-				}
-				GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "position",
-					label, &synth.grain_spawn_pos, 0.0f, 1.0f);
-			}
-			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "spray",
-				TextFormat("%.0f%%", synth.grain_spawn_pos_spray * 100.0f),
-				&synth.grain_spawn_pos_spray, 0.0f, 1.0f);
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "amp", "%.0f%%", P_GRAIN_AMP, 100.0f);
+			ModSlider(Rectangle{ c2, sy, w, 20 }, "rate", "%.2f g/s", P_GRAIN_RATE);
 			sy += 28;
 
-			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "life",
-				TextFormat("%.0f ms", synth.grain_life * 1000.0f),
-				&synth.grain_life, 0.005f, 0.5f);
-			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "spray",
-				TextFormat("%.0f%%", synth.grain_life_spray * 100.0f),
-				&synth.grain_life_spray, 0.0f, 1.0f);
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "position", "%.0f%%", P_GRAIN_POS, 100.0f);
+			ModSlider(Rectangle{ c2, sy, w, 20 }, "spray", "%.0f%%", P_GRAIN_POS_SPRAY, 100.0f);
 			sy += 28;
 
-			GuiSliderBar(Rectangle{ c1, sy, w, 20 }, "shape",
-				TextFormat("%.2f", synth.grain_shape), &synth.grain_shape, 0.0f, 1.0f);
-			GuiSliderBar(Rectangle{ c2, sy, w, 20 }, "tilt",
-				TextFormat("%.2f", synth.grain_tilt), &synth.grain_tilt, 0.02f, 0.98f);
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "life", "%.0f ms", P_GRAIN_LIFE, 1000.0f);
+			ModSlider(Rectangle{ c2, sy, w, 20 }, "spray", "%.0f%%", P_GRAIN_LIFE_SPRAY, 100.0f);
+			sy += 28;
+
+			ModSlider(Rectangle{ c1, sy, w, 20 }, "shape", "%.2f", P_GRAIN_SHAPE);
+			ModSlider(Rectangle{ c2, sy, w, 20 }, "tilt", "%.2f", P_GRAIN_TILT);
 			sy += 30;
 
-			int overlap = (int)ceilf(synth.grain_spawn_rate_per_second * synth.grain_life);
+			int overlap = (int)ceilf(synth.params[P_GRAIN_RATE].current
+				* synth.params[P_GRAIN_LIFE].current);
 			bool over = overlap > grain_amount;
 			DrawTextEx(g_app_font,
 				TextFormat("~%d overlapping  (pool %d)", overlap, grain_amount),
-				{ grx + 20, sy + 3 }, 13, 1.0f,
+				{ grx + 20, sy + 14 }, 13, 1.0f,
 				over ? MAROON : Color{ 150, 150, 160, 255 });
 
-			DrawGrainEnv(Rectangle{ grx + 190, sy, grw - 210, 46 },
-				synth.grain_shape, synth.grain_tilt,
-				synth.grain_spawn_rate_per_second, synth.grain_life);
+			DrawGrainEnv(Rectangle{ grx + 190, sy, grw - 210, 44 },
+				synth.params[P_GRAIN_SHAPE].current, synth.params[P_GRAIN_TILT].current,
+				synth.params[P_GRAIN_RATE].current, synth.params[P_GRAIN_LIFE].current);
 		}
 
 		// ---- delay ------------------------------------------------------
@@ -453,54 +531,117 @@ namespace resynth {
 		Panel(dlx, py3, dlw, ph3, "Delay");
 		{
 			const float sx = dlx + 100, sw = 200;
-			float sy = py3 + 52;
+			float sy = py3 + 48;
 
-			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "time",
-				TextFormat("%.0f ms", synth.delay_time * 1000.0f),
-				&synth.delay_time, 0.01f, 2.0f);
-			sy += 32;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "stereo", "%.0f%%", P_DELAY_STEREO, 100.0f);      sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "amp", "%.0f%%", P_DELAY_AMP, 100.0f);      sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "time", "%.0f ms", P_DELAY_TIME, 1000.0f);   sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "feedback", "%.0f%%", P_DELAY_FEEDBACK, 100.0f); sy += 34;
 
-			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "feedback",
-				TextFormat("%.0f%%", synth.delay_feedback * 100.0f),
-				&synth.delay_feedback, 0.0f, 0.95f);
-			sy += 32;
-
-			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "mix",
-				TextFormat("%.0f%%", synth.delay_amp * 100.0f),
-				&synth.delay_amp, 0.0f, 1.0f);
-			sy += 36;
-
-			// how long the tail takes to fall below -60 dB, and whether the buffer fits
-			float needed = synth.delay_time * synth.sample_rate;
-			bool over = needed > (float)delay_buffer_size;
-
-			if (synth.delay_feedback > 0.001f) {
-				float repeats = logf(0.001f) / logf(std::max(synth.delay_feedback, 0.001f));
+			float fb = synth.params[P_DELAY_FEEDBACK].current;
+			if (fb > 0.001f) {
+				float repeats = logf(0.001f) / logf(std::max(fb, 0.001f));
 				DrawTextEx(g_app_font,
-					TextFormat("~%.0f repeats   tail %.1f s", repeats, repeats * synth.delay_time),
+					TextFormat("~%.0f repeats   tail %.1f s",
+						repeats, repeats * synth.params[P_DELAY_TIME].current),
 					{ dlx + 24, sy }, 13, 1.0f, Color{ 150, 150, 160, 255 });
 			}
 			sy += 20;
 
-			if (over) {
+			if (synth.params[P_DELAY_TIME].current * synth.sample_rate > (float)delay_buffer_size) {
 				DrawTextEx(g_app_font,
 					TextFormat("buffer holds %.2f s max",
 						(float)delay_buffer_size / (float)synth.sample_rate),
-					{ sx + 24, sy }, 13, 1.0f, MAROON);
+					{ dlx + 24, sy }, 13, 1.0f, MAROON);
 			}
+		}
 
-			GuiCheckBox(Rectangle{ sx - 60, sy, 20, 20 }, "", &synth.drive_enabled);
+		// ---- LFOs -------------------------------------------------------
+		const float lfx = 20.0f, lfw = 1878.0f, lfh = 150.0f;
+		Panel(lfx, py4, lfw, lfh, "LFOs");
+		{
+			const float col_w = (lfw - 40.0f) / (float)max_lfos;
 
-			GuiSliderBar(Rectangle{ sx, sy, sw, 20 }, "drive",
-				TextFormat("%.0f%", synth.drive),
-				&synth.drive, 0.0f, 1.0f);
-			sy += 36;
+			for (int l = 0; l < max_lfos; l++) {
+				LFO& lfo = synth.lfos[l];
+				const float cx = lfx + 20 + l * col_w;
+				const float cw = col_w - 16.0f;
 
-			GuiCheckBox(Rectangle{ sx, sy, 20, 20 }, "drive before filter", & synth.drive_before_filter);
+				DrawTextEx(g_app_font, TextFormat("LFO %d", l + 1),
+					{ cx, py4 + 36 }, 14, 1.0f, DARKGRAY);
+
+				// ---- waveform strip with a live playhead
+				Rectangle wr = { cx, py4 + 56, cw, 40 };
+				DrawRectangleRec(wr, Color{ 252, 252, 254, 255 });
+
+				Vector2 prev{};
+				for (int i = 0; i <= 96; i++) {
+					float u = (float)i / 96.0f;
+					float v = synth.oscillate(u * 2.0f * PI, lfo.shape);
+					Vector2 p = { wr.x + u * wr.width,
+								  wr.y + wr.height * 0.5f - v * (wr.height * 0.40f) };
+					if (i > 0) DrawLineEx(prev, p, 1.5f, Color{ 90, 190, 150, 255 });
+					prev = p;
+				}
+
+				float ph = lfo.phase / (2.0f * PI);
+				BeginScissorMode(cx, py4 + 56, cw, 40);
+				DrawLineEx({ wr.x + ph * wr.width, wr.y },
+					{ wr.x + ph * wr.width, wr.y + wr.height },
+					1.5f, Color{ 235, 140, 60, 200 });
+				DrawRectangleLinesEx(wr, 1, Color{ 200, 200, 208, 255 });
+				EndScissorMode();
+
+				// ---- shape buttons
+				const WaveShape shapes[4] = { SINE, SAW, SQUARE, TRIANGLE };
+				const char* names[4] = { "sin", "saw", "sqr", "tri" };
+				for (int i = 0; i < 4; i++) {
+					Rectangle br = { cx + i * (cw / 4.0f), py4 + 100, cw / 4.0f - 4, 20 };
+					bool active = lfo.shape == shapes[i];
+					bool hover = CheckCollisionPointRec(mouse, br);
+					if (hover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) lfo.shape = shapes[i];
+
+					DrawRectangleRec(br, active ? Color{ 225, 238, 252, 255 }
+					: (hover ? Color{ 244, 244, 248, 255 } : Color{ 252, 252, 254, 255 }));
+					DrawRectangleLinesEx(br, active ? 2.0f : 1.0f,
+						active ? Color{ 60, 120, 190, 255 } : Color{ 200, 200, 208, 255 });
+					Vector2 ns = MeasureTextEx(g_app_font, names[i], 12, 1.0f);
+					DrawTextEx(g_app_font, names[i],
+						{ br.x + (br.width - ns.x) * 0.5f, br.y + 4 }, 12, 1.0f,
+						active ? Color{ 40, 100, 175, 255 } : Color{ 130, 130, 140, 255 });
+				}
+
+				// ---- rate, log-mapped so slow and fast are both reachable
+				float u = log10f(std::max(lfo.frequency, 0.01f) / 0.05f) / log10f(40.0f / 0.05f);
+				u = std::clamp(u, 0.0f, 1.0f);
+				GuiSliderBar(Rectangle{ cx + 30, py4 + 126, cw - 66, 18 }, "rate",
+					TextFormat("%.2f Hz", lfo.frequency), &u, 0.0f, 1.0f);
+				lfo.frequency = 0.05f * powf(40.0f / 0.05f, u);
+
+				// ---- what this LFO is driving, and a clear-all
+				std::string dests;
+				int count = 0;
+				for (int i = 0; i < max_routings; i++) {
+					const Routing& rt = synth.routings[i];
+					if (rt.lfo != l || rt.param < 0) continue;
+					if (count) dests += ", ";
+					dests += synth.params[rt.param].name;
+					count++;
+				}
+				DrawTextEx(g_app_font,
+					count ? dests.c_str() : "not routed",
+					{ cx, py4 + 150 }, 12, 1.0f,
+					count ? Color{ 130, 130, 140, 255 } : Color{ 185, 185, 195, 255 });
+
+				if (count && GuiButton(Rectangle{ cx + cw - 50, py4 + 36, 50, 16 }, "clear")) {
+					for (int i = 0; i < max_routings; i++)
+						if (synth.routings[i].lfo == l) synth.routings[i] = Routing{};
+				}
+			}
 		}
 
 		// ---- keyboard ---------------------------------------------------
-		const float kpy = py3 + ph3 + 30;
+		const float kpy = py4 + ph4 - 80;
 		const float ex = 20.0f;
 		DrawTextEx(g_app_font, "Keyboard", { ex, kpy }, 16, 1.0f, DARKGRAY);
 
@@ -602,6 +743,8 @@ namespace resynth {
 					14, 1.0f, Color{ 220, 220, 228, 255 });
 			}
 		}
+
+		DrawModPopup();
 	}
 
 	void App::RefreshDisplayChunk() {

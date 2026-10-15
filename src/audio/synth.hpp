@@ -32,6 +32,46 @@ namespace resynth {
 		bool   active;
 	};
 
+	// ---- modulation ---------------------------------------------------
+	constexpr int max_lfos = 8;
+	constexpr int max_routings = 64;
+
+	enum ParamId {
+		P_LP_CUTOFF, P_HP_CUTOFF, P_RESONANCE, 
+		P_DRIVE,
+		P_DETUNE, P_OSC_MIX, P_OSC_AMP, P_OSC_STEREO,
+		P_GRAIN_RATE, 
+		P_GRAIN_POS, P_GRAIN_POS_SPRAY, 
+		P_GRAIN_LIFE, P_GRAIN_LIFE_SPRAY,
+		P_GRAIN_SHAPE, P_GRAIN_TILT,
+		P_GRAIN_AMP, P_GRAIN_STEREO,
+		P_SAMPLE_START, P_SAMPLE_LOOP_START, P_SAMPLE_AMP, P_SAMPLE_STEREO,
+		P_DELAY_TIME, P_DELAY_FEEDBACK, P_DELAY_AMP, P_DELAY_STEREO,
+		P_AMPLITUDE,
+		PARAM_COUNT
+	};
+
+	struct Param {
+		const char* name = "";
+		float base = 0.0f;				// the slider owns this
+		float lo = 0.0f, hi = 1.0f;
+		float current = 0.0f;			// Render writes this every sample; UI only reads it
+	};
+
+	struct LFO {
+		float     frequency = 1.0f;     // Hz
+		WaveShape shape = SINE;
+		float     phase = 0.0f;         // audio thread only
+		float     value = 0.0f;         // audio thread writes, UI reads for display
+		bool      retrigger = false;    // reset phase on note-on
+	};
+
+	struct Routing {
+		int   lfo = -1;                 // -1 = empty slot
+		int   param = -1;
+		float depth = 0.0f;             // -1..1, fraction of the param's range
+	};
+
 	class Key {
 	public:
 		int idx = -1;
@@ -85,11 +125,9 @@ namespace resynth {
 
 	class Synth {
 	public:
-		// Called once after InitAudioDevice(). Opens the stream and starts it.
 		void Init(int sample_rate = 48000);
 		void Shutdown();
 
-		// Audio-thread only. Fills `frames` mono float samples.
 		void Render(float* out, int frames);
 		void Update();
 
@@ -97,12 +135,10 @@ namespace resynth {
 		void envelope(EnvelopeStage& stage, float& level, float attack_step, float decay_step, float sustain_level, float release_step);
 		float filter(float in, float lp_coeff, float hp_coeff, Key& key);
 
-
 		void fill_preview_graph(int resolution, int cycles);
 		void fill_live_spectrum();
 
 		bool is_any_key_active(int exclude);
-
 
 		int sample_rate = 48000;
 		bool running = false;
@@ -116,36 +152,28 @@ namespace resynth {
 
 		// UI-thread parameters. Read by the audio thread every block.
 		float base_frequency = 27.5;
-		float amplitude = 0.1f;   // start silent
-		float lp_cutoff = 48000.0f;
-		float hp_cutoff = 0.0f;
 		bool invert = false;
-		float osc_lerp = 0.0f;
-		float osc_amp = 1.0f;
 		WaveShape wave_shape = SINE;
 		WaveShape wave_shape2 = SAW;
 
+		// modulation parameters
+		Param   params[PARAM_COUNT];
+		LFO     lfos[max_lfos];
+		Routing routings[max_routings];
+		int     routing_count = 0;
+
+		void  init_params();
+		float param(ParamId id) const { return params[id].current; }
+		void  apply_modulation();
+		int   find_routing(int lfo, int param) const;
+		void  set_routing(int lfo, int param, float depth);
+
 		// effect parameters
-		float delay_time = 0.5f;						// delay time in ms
-		float delay_feedback = 0.5f;					// feedback in % - (0.0 to 1.0)
 		float delay_buffer[delay_buffer_size];
 		int delay_buffer_pos = 0.0f;
-		float delay_amp = 0.5f;							// delay amplitude in % - (0.0 to 1.0)	
 
-		bool drive_enabled = false;							// enable drive
-		float drive = 0.0f;								// drive in % - (0.0 to 1.0)
-		bool drive_before_filter = true;				// drive before filter or after filter
-
-		// grain parameters
-		float grain_mix = 1.0f;							// mix between sample and grainsin % - (0.0 to 1.0)
-		float grain_spawn_rate_per_second = 10.0f;		// grains per second
-		float grain_spawn_pos = 1.0f;					// position in sample in %  - (0.0 to 1.0)
-		float grain_spawn_pos_spray = 0.0f;				// position spray in sample in ms
-		float grain_life = 0.1f;						// life in ms
-		float grain_life_spray = 0.0f;					// life spray in ms
-		float grain_shape = 0.5f;						// shape of the grain envelope (0.0 to 1.0)
-		float grain_tilt = 0.0f;						// tilt of the grain envelope (0.0 to 1.0)
-		float grain_amp = 0.0f;
+		bool drive_enabled = false;
+		bool drive_before_filter = true;
 
 		// sample parameters
 		void load_sample_into_keys();
@@ -155,10 +183,6 @@ namespace resynth {
 		float sample_loop_fade = false;
 		float sample_loop_fade_length = 1.0f;
 		float sample_length = 1.0f;
-		float sample_mix = 0.0f;
-		float sample_start = 0.0f;
-		float sample_loop_start = 0.0f;
-		float sample_amp = 1.0f;
 
 		// slide parameters
 		int sounding_key = -1;
@@ -172,8 +196,6 @@ namespace resynth {
 
 		// filter parameters
 		int poles = 4;
-		float resonance = 1.0f;
-		float cents = 10.0f;
 
 		float attack = 0.01f;
 		float decay = 1.0f;

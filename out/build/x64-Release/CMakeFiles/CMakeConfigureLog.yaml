@@ -109,8 +109,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-cx0f93"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-cx0f93"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g2tp0a"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g2tp0a"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /EHsc"
       CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -120,11 +120,11 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-cx0f93'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g2tp0a'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_69d26
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_69d26.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_69d26.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_69d26.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_69d26.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_69d26.exe /implib:cmTC_69d26.lib /pdb:cmTC_69d26.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_528b5
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_528b5.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_528b5.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCXXCompilerABI.cpp"
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_528b5.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_528b5.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_528b5.exe /implib:cmTC_528b5.lib /pdb:cmTC_528b5.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -164,8 +164,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-zy92bc"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-zy92bc"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-bbasu2"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-bbasu2"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_C_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -174,11 +174,11 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-zy92bc'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-bbasu2'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_b7af1
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_b7af1.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_b7af1.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCCompilerABI.c"
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_b7af1.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_b7af1.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_b7af1.exe /implib:cmTC_b7af1.lib /pdb:cmTC_b7af1.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_97c5f
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_97c5f.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_97c5f.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-3.31\\Modules\\CMakeCCompilerABI.c"
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_97c5f.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_97c5f.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_97c5f.exe /implib:cmTC_97c5f.lib /pdb:cmTC_97c5f.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -221,8 +221,8 @@ events:
     checks:
       - "Performing Test COMPILER_HAS_THOSE_TOGGLES"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-yf4wts"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-yf4wts"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-x4xwkz"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-x4xwkz"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -231,12 +231,12 @@ events:
       variable: "COMPILER_HAS_THOSE_TOGGLES"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-yf4wts'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-x4xwkz'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_9324e
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCOMPILER_HAS_THOSE_TOGGLES  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd   -Werror=pointer-arith /showIncludes /FoCMakeFiles\\cmTC_9324e.dir\\src.c.obj /FdCMakeFiles\\cmTC_9324e.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-yf4wts\\src.c
-        FAILED: CMakeFiles/cmTC_9324e.dir/src.c.obj 
-        C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCOMPILER_HAS_THOSE_TOGGLES  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd   -Werror=pointer-arith /showIncludes /FoCMakeFiles\\cmTC_9324e.dir\\src.c.obj /FdCMakeFiles\\cmTC_9324e.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-yf4wts\\src.c
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_8d329
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCOMPILER_HAS_THOSE_TOGGLES  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd   -Werror=pointer-arith /showIncludes /FoCMakeFiles\\cmTC_8d329.dir\\src.c.obj /FdCMakeFiles\\cmTC_8d329.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-x4xwkz\\src.c
+        FAILED: CMakeFiles/cmTC_8d329.dir/src.c.obj 
+        C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCOMPILER_HAS_THOSE_TOGGLES  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd   -Werror=pointer-arith /showIncludes /FoCMakeFiles\\cmTC_8d329.dir\\src.c.obj /FdCMakeFiles\\cmTC_8d329.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-x4xwkz\\src.c
         cl : Command line error D8021 : invalid numeric argument '/Werror=pointer-arith'
         ninja: build stopped: subcommand failed.
         
@@ -252,8 +252,8 @@ events:
     checks:
       - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-britr3"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-britr3"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-k3iksv"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-k3iksv"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_EXE_LINKER_FLAGS: "/machine:x64"
@@ -262,13 +262,13 @@ events:
       variable: "CMAKE_HAVE_LIBC_PTHREAD"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-britr3'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-k3iksv'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d4dcf
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_d4dcf.dir\\src.c.obj /FdCMakeFiles\\cmTC_d4dcf.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-britr3\\src.c
-        FAILED: CMakeFiles/cmTC_d4dcf.dir/src.c.obj 
-        C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_d4dcf.dir\\src.c.obj /FdCMakeFiles\\cmTC_d4dcf.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-britr3\\src.c
-        C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-britr3\\src.c(1): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_acdb8
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_acdb8.dir\\src.c.obj /FdCMakeFiles\\cmTC_acdb8.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-k3iksv\\src.c
+        FAILED: CMakeFiles/cmTC_acdb8.dir/src.c.obj 
+        C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo -DCMAKE_HAVE_LIBC_PTHREAD  /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_acdb8.dir\\src.c.obj /FdCMakeFiles\\cmTC_acdb8.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-k3iksv\\src.c
+        C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-k3iksv\\src.c(1): fatal error C1083: Cannot open include file: 'pthread.h': No such file or directory
         ninja: build stopped: subcommand failed.
         
       exitCode: 1
@@ -282,8 +282,8 @@ events:
     checks:
       - "Looking for pthread_create in pthreads"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-9r21xr"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-9r21xr"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-paj4qk"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-paj4qk"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_C_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -293,14 +293,14 @@ events:
       variable: "CMAKE_HAVE_PTHREADS_CREATE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-9r21xr'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-paj4qk'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0c49f
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_0c49f.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_0c49f.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-9r21xr\\CheckFunctionExists.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_0c49f.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c49f.dir\\CheckFunctionExists.c.obj  /out:cmTC_0c49f.exe /implib:cmTC_0c49f.lib /pdb:cmTC_0c49f.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        FAILED: cmTC_0c49f.exe 
-        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_0c49f.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c49f.dir\\CheckFunctionExists.c.obj  /out:cmTC_0c49f.exe /implib:cmTC_0c49f.lib /pdb:cmTC_0c49f.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c49f.dir\\CheckFunctionExists.c.obj /out:cmTC_0c49f.exe /implib:cmTC_0c49f.lib /pdb:cmTC_0c49f.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_0c49f.dir/intermediate.manifest CMakeFiles\\cmTC_0c49f.dir/manifest.res" failed (exit code 1104) with the following output:
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_0c678
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_0c678.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_0c678.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-paj4qk\\CheckFunctionExists.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_0c678.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c678.dir\\CheckFunctionExists.c.obj  /out:cmTC_0c678.exe /implib:cmTC_0c678.lib /pdb:cmTC_0c678.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        FAILED: cmTC_0c678.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_0c678.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c678.dir\\CheckFunctionExists.c.obj  /out:cmTC_0c678.exe /implib:cmTC_0c678.lib /pdb:cmTC_0c678.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthreads.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_0c678.dir\\CheckFunctionExists.c.obj /out:cmTC_0c678.exe /implib:cmTC_0c678.lib /pdb:cmTC_0c678.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthreads.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_0c678.dir/intermediate.manifest CMakeFiles\\cmTC_0c678.dir/manifest.res" failed (exit code 1104) with the following output:
         LINK : fatal error LNK1104: cannot open file 'pthreads.lib'\x0d
         ninja: build stopped: subcommand failed.
         
@@ -315,8 +315,8 @@ events:
     checks:
       - "Looking for pthread_create in pthread"
     directories:
-      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g6ftf3"
-      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g6ftf3"
+      source: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-r71mm2"
+      binary: "C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-r71mm2"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_C_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -326,14 +326,14 @@ events:
       variable: "CMAKE_HAVE_PTHREAD_CREATE"
       cached: true
       stdout: |
-        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-g6ftf3'
+        Change Dir: 'C:/Users/loekv/OneDrive/Documenten/BUas/git/Year-4/Project-Audio/resynthesize/out/build/x64-Release/CMakeFiles/CMakeScratch/TryCompile-r71mm2'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_307ea
-        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_307ea.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_307ea.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-g6ftf3\\CheckFunctionExists.c
-        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_307ea.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_307ea.dir\\CheckFunctionExists.c.obj  /out:cmTC_307ea.exe /implib:cmTC_307ea.lib /pdb:cmTC_307ea.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        FAILED: cmTC_307ea.exe 
-        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_307ea.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_307ea.dir\\CheckFunctionExists.c.obj  /out:cmTC_307ea.exe /implib:cmTC_307ea.lib /pdb:cmTC_307ea.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
-        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_307ea.dir\\CheckFunctionExists.c.obj /out:cmTC_307ea.exe /implib:cmTC_307ea.lib /pdb:cmTC_307ea.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_307ea.dir/intermediate.manifest CMakeFiles\\cmTC_307ea.dir/manifest.res" failed (exit code 1104) with the following output:
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_c9a93
+        [1/2] C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS -DCHECK_FUNCTION_EXISTS=pthread_create /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_c9a93.dir\\CheckFunctionExists.c.obj /FdCMakeFiles\\cmTC_c9a93.dir\\ /FS -c C:\\Users\\loekv\\OneDrive\\Documenten\\BUas\\git\\Year-4\\Project-Audio\\resynthesize\\out\\build\\x64-Release\\CMakeFiles\\CMakeScratch\\TryCompile-r71mm2\\CheckFunctionExists.c
+        [2/2] C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_c9a93.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c9a93.dir\\CheckFunctionExists.c.obj  /out:cmTC_c9a93.exe /implib:cmTC_c9a93.lib /pdb:cmTC_c9a93.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        FAILED: cmTC_c9a93.exe 
+        C:\\WINDOWS\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1938 --intdir=CMakeFiles\\cmTC_c9a93.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c9a93.dir\\CheckFunctionExists.c.obj  /out:cmTC_c9a93.exe /implib:cmTC_c9a93.lib /pdb:cmTC_c9a93.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  pthread.lib  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        LINK Pass 1: command "C:\\PROGRA~1\\MICROS~1\\2022\\COMMUN~1\\VC\\Tools\\MSVC\\1438~1.331\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_c9a93.dir\\CheckFunctionExists.c.obj /out:cmTC_c9a93.exe /implib:cmTC_c9a93.lib /pdb:cmTC_c9a93.pdb /version:0.0 /machine:x64 /debug /INCREMENTAL /subsystem:console pthread.lib kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib /MANIFEST /MANIFESTFILE:CMakeFiles\\cmTC_c9a93.dir/intermediate.manifest CMakeFiles\\cmTC_c9a93.dir/manifest.res" failed (exit code 1104) with the following output:
         LINK : fatal error LNK1104: cannot open file 'pthread.lib'\x0d
         ninja: build stopped: subcommand failed.
         

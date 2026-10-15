@@ -53,10 +53,16 @@ namespace resynth {
 		float alpha = 0.0f;
 		float percentile = 0.0f;
 
+		int popup_param = -1; 
+		Vector2 popup_pos{};
+		bool mouse_up_since_popup = false;
+
 		Synth synth;
 		char sample_path[256] = "";
 		int key_view_start = 27;
 		int key_view_count = 29;
+		void ModSlider(Rectangle r, const char* label, const char* fmt, ParamId id, float display_scale = 1.0f);
+		void DrawModPopup();
 		void DrawSynthSection();
 		void DrawViewTabs();
 
