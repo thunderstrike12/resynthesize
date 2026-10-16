@@ -554,6 +554,11 @@ namespace resynth {
 						(float)delay_buffer_size / (float)synth.sample_rate),
 					{ dlx + 24, sy }, 13, 1.0f, MAROON);
 			}
+			sy += 20;
+
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "amp", "%.0f%%", P_REVERB_AMP, 100.0f); sy += 28;
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "damp", "%.0f%%", P_REVERB_DAMP, 100.0f); sy += 28;	
+			ModSlider(Rectangle{ sx, sy, sw, 20 }, "feedback", "%.0f%%", P_REVERB_FEEDBACK, 100.0f); sy += 28;
 		}
 
 		// ---- LFOs -------------------------------------------------------

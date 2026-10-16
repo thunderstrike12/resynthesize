@@ -81,3 +81,11 @@
 1340	1605	8136908737987143	resynthesize.exe	aef0ed2c1b59f478
 50	680	8136910498295880	CMakeFiles/resynthesize.dir/src/audio/synth.cpp.obj	1ec27829d818401f
 681	842	8136910504592509	resynthesize.exe	aef0ed2c1b59f478
+39	767	8137848244683096	CMakeFiles/resynthesize.dir/src/audio/synth.cpp.obj	1ec27829d818401f
+24	770	8137848244563786	CMakeFiles/resynthesize.dir/src/main.cpp.obj	d6968a3b94e8d3b0
+32	882	8137848244573874	CMakeFiles/resynthesize.dir/src/app/app.cpp.obj	768f03f955b33af9
+883	1069	8137848253146571	resynthesize.exe	aef0ed2c1b59f478
+43	672	8137849055124732	CMakeFiles/resynthesize.dir/src/audio/synth.cpp.obj	1ec27829d818401f
+673	863	8137849061358628	resynthesize.exe	aef0ed2c1b59f478
+38	945	8137858663839503	CMakeFiles/resynthesize.dir/src/audio/synth.cpp.obj	1ec27829d818401f
+946	1151	8137858672919646	resynthesize.exe	aef0ed2c1b59f478

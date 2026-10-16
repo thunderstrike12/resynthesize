@@ -46,7 +46,8 @@ namespace resynth {
 		P_GRAIN_SHAPE, P_GRAIN_TILT,
 		P_GRAIN_AMP, P_GRAIN_STEREO,
 		P_SAMPLE_START, P_SAMPLE_LOOP_START, P_SAMPLE_AMP, P_SAMPLE_STEREO,
-		P_DELAY_TIME, P_DELAY_FEEDBACK, P_DELAY_AMP, P_DELAY_STEREO,
+		P_DELAY_AMP,P_DELAY_TIME, P_DELAY_FEEDBACK,  P_DELAY_STEREO,
+		P_REVERB_AMP, P_REVERB_FEEDBACK, P_REVERB_DAMP,
 		P_AMPLITUDE,
 		PARAM_COUNT
 	};
@@ -174,6 +175,18 @@ namespace resynth {
 
 		bool drive_enabled = false;
 		bool drive_before_filter = true;
+
+		float comb_buf_l[4][2000];
+		int   comb_pos_l[4];
+		float comb_store_l[4];
+		float allpass_buf_l[2][600];
+		int   allpass_pos_l[2];
+
+		float comb_buf_r[4][2000];
+		int   comb_pos_r[4];
+		float comb_store_r[4];
+		float allpass_buf_r[2][600];
+		int   allpass_pos_r[2];
 
 		// sample parameters
 		void load_sample_into_keys();

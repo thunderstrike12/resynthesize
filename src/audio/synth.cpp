@@ -30,9 +30,21 @@ namespace resynth {
 			keys[i].frequency = base_frequency * powf(key_ratio, (float)i);
 			keys[i].idx = i;
 		}
-		for (int i = 0; i < delay_buffer_size; i++)
-		{
-			delay_buffer[i] = 0.0f;
+		for (int i = 0; i < delay_buffer_size; i++)	delay_buffer[i] = 0.0f;
+
+		for (int i = 0; i < 4; i++) {
+			comb_pos_l[i] = 0; comb_store_l[i] = 0.0f;
+			comb_pos_r[i] = 0; comb_store_r[i] = 0.0f;
+		}
+		for (int j = 0; j < 4; j++) for (int i = 0; i < 2000; i++) {
+			comb_buf_l[j][i] = 0.0f; comb_buf_r[j][i] = 0.0f;
+		}
+
+		for (int i = 0; i < 2; i++) { 
+			allpass_pos_l[i] = 0; allpass_pos_r[i] = 0; 
+		}
+		for (int j = 0; j < 2; j++) for (int i = 0; i < 600; i++) {
+			allpass_buf_l[j][i] = 0.0f; allpass_buf_r[j][i] = 0.0f;
 		}
 	}
 
@@ -202,6 +214,22 @@ namespace resynth {
 		return sig;
 	}
 
+	float comb(float in, float* buf, int len, int& pos, float fb, float damp, float& store) {
+		float d = buf[pos];
+		store = d * (1.0f - damp) + store * damp;
+		buf[pos] = in + store * fb;
+		pos = (pos + 1) % len;
+		return d;
+	}
+
+	float allpass(float in, float* buf, int len, int& pos, float g) {
+		float d = buf[pos];
+		float out = -in + d;
+		buf[pos] = in + d * g;
+		pos = (pos + 1) % len;
+		return out;
+	}
+
 	void Synth::Render(float* out, int frames) {
 		for (int i = 0; i < frames * 2.0f; i++) out[i] = 0.0f;
 		for (int k = 0; k < 88; k++) {
@@ -357,8 +385,8 @@ namespace resynth {
 
 				//apply filter and distortion
 				float d = 1.0f + params[P_DRIVE].current * 24.0f;
-				if (drive_before_filter && drive_enabled) { 
-					in_tot_l = tanhf(in_tot_l *d) / tanhf(d);
+				if (drive_before_filter && drive_enabled) {
+					in_tot_l = tanhf(in_tot_l * d) / tanhf(d);
 					in_tot_r = tanhf(in_tot_r * d) / tanhf(d);
 				}
 				float curr_l = filter(in_tot_l, lp_coeff, hp_coeff, key);
@@ -386,8 +414,6 @@ namespace resynth {
 
 				float delayed_l = delay_buffer[delay_buffer_pos * 2];
 				float delayed_r = delay_buffer[delay_buffer_pos * 2 + 1];
-				//delay_buffer[delay_buffer_pos * 2] = (out[i * 2] + delayed_l * params[P_DELAY_FEEDBACK].current) * (1.0f - params[P_DELAY_STEREO].current);
-				//delay_buffer[delay_buffer_pos * 2 + 1] = out[i * 2 + 1] + delayed_r * params[P_DELAY_FEEDBACK].current * params[P_DELAY_STEREO].current;
 
 				float fb = params[P_DELAY_FEEDBACK].current;
 				float x = params[P_DELAY_STEREO].current;   // 0 = parallel, 1 = full ping-pong
@@ -400,9 +426,27 @@ namespace resynth {
 
 				delay_buffer_pos++;
 			}
+			//apply reverb
+			if (params[P_REVERB_AMP].current > 0.001f) {
+				float mono = (out[i * 2] + out[i * 2 + 1]) * 0.5f;
+				int r_offset = 23;
 
-			//curr_out[curr_out_idx] = out[i];
-			//curr_out_idx = (curr_out_idx + 1) % live_spectrum_window_size;
+				float reverb_l = comb(mono, comb_buf_l[0], 1557, comb_pos_l[0], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_l[0]) +
+					comb(mono, comb_buf_l[1], 1617, comb_pos_l[1], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_l[1]) +
+					comb(mono, comb_buf_l[2], 1492, comb_pos_l[2], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_l[2]) +
+					comb(mono, comb_buf_l[3], 1422, comb_pos_l[3], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_l[3]);
+
+				float reverb_r = comb(mono, comb_buf_r[0], 1557 + r_offset, comb_pos_r[0], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_r[0]) +
+					comb(mono, comb_buf_r[1], 1617 + r_offset, comb_pos_r[1], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_r[1]) +
+					comb(mono, comb_buf_r[2], 1492 + r_offset, comb_pos_r[2], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_r[2]) +
+					comb(mono, comb_buf_r[3], 1422 + r_offset, comb_pos_r[3], params[P_REVERB_FEEDBACK].current, params[P_REVERB_DAMP].current, comb_store_r[3]);
+
+				reverb_l = allpass(allpass(reverb_l, allpass_buf_l[0], 225, allpass_pos_l[0], 0.5f), allpass_buf_l[1], 556, allpass_pos_l[1], 0.5f);
+				reverb_r = allpass(allpass(reverb_r, allpass_buf_r[0], 225, allpass_pos_r[0], 0.5f), allpass_buf_r[1], 556, allpass_pos_r[1], 0.5f);
+
+				out[i * 2] += reverb_l * params[P_REVERB_AMP].current;
+				out[i * 2 + 1] += reverb_r * params[P_REVERB_AMP].current;
+			}
 
 			for (int i = 0; i < frames; i++) {
 				curr_out[curr_out_idx] = (out[i * 2] + out[i * 2 + 1]) * 0.5f;
